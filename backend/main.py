@@ -23,6 +23,20 @@ app.add_middleware(
 )
 
 
+# Hardcoded demo patient context for the LiveAvatar conversation demo.
+# Rough mood + missed yesterday → triggers Gemini's empathy-first clinical response.
+# Post-demo, this is replaced by MongoDB SessionContext lookup per user_id.
+DEMO_SESSION_CONTEXT = {
+    "patient_id": "demo_maria",
+    "last_session_date": "2026-04-16",
+    "last_exercise": "target_reach",
+    "streak_days": 2,
+    "fma_subscale_score": 28.0,
+    "mood_today": "Rough",
+    "missed_yesterday": True,
+}
+
+
 # Mount Sreekar's Photon iMessage webhook router (handles POST /photon/inbound)
 app.include_router(photon_router)
 
@@ -46,8 +60,36 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-            if data.get("type") == "ping":
+            msg_type = data.get("type")
+            if msg_type == "ping":
                 await websocket.send_json({"type": "pong", "payload": {}, "timestamp": time.time()})
+            elif msg_type == "patient_speech":
+                # Glue: patient_speech → Gemini clinical_response → avatar_response
+                patient_text = (data.get("payload") or {}).get("text", "").strip()
+                if not patient_text:
+                    await websocket.send_json({
+                        "type": "error",
+                        "payload": {"code": "EMPTY_SPEECH", "message": "patient_speech payload missing text"},
+                        "timestamp": time.time(),
+                    })
+                    continue
+                try:
+                    from kineticlab.prompts.system_prompt import clinical_response
+                    reply = await clinical_response(DEMO_SESSION_CONTEXT, patient_text)
+                except Exception as exc:
+                    logger.exception("clinical_response failed")
+                    await websocket.send_json({
+                        "type": "error",
+                        "payload": {"code": "GEMINI_ERROR", "message": str(exc)},
+                        "timestamp": time.time(),
+                    })
+                    continue
+                await websocket.send_json({
+                    "type": "avatar_response",
+                    "payload": {"text": reply, "patient_said": patient_text},
+                    "timestamp": time.time(),
+                })
+                logger.info("Gemini reply sent (len=%d)", len(reply))
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         logger.info("Client disconnected. Total: %d", len(manager.active_connections))
@@ -143,3 +185,52 @@ async def avatar_status():
         "active_sessions": list(_avatar_clients.keys()),
         "count": len(_avatar_clients),
     }
+
+
+# ----- Scribe transcribe (patient speech → text) -----
+from fastapi import UploadFile, File
+
+
+@app.post("/avatar/transcribe")
+async def avatar_transcribe(file: UploadFile = File(...)):
+    """Transcribe a patient audio clip via ElevenLabs Scribe.
+
+    Body: multipart form with 'file' field containing audio (MP3/WAV/WebM).
+    Returns: {"text": "transcribed speech"}
+
+    Frontend flow:
+      1. Record mic audio with MediaRecorder (any format Scribe accepts)
+      2. POST blob here as multipart
+      3. Receive transcript
+      4. Send transcript to /ws as {type: "patient_speech", payload: {text}}
+    """
+    import httpx
+    import os
+
+    api_key = os.environ.get("ELEVEN_API_KEY") or os.environ.get("ELEVENLABS_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ElevenLabs API key not configured")
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio file")
+
+    content_type = file.content_type or "audio/mpeg"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            resp = await client.post(
+                "https://api.elevenlabs.io/v1/speech-to-text",
+                headers={"xi-api-key": api_key},
+                files={"file": (file.filename or "audio", audio_bytes, content_type)},
+                data={"model_id": "scribe_v1", "language_code": "en"},
+            )
+            resp.raise_for_status()
+            payload = resp.json()
+        except httpx.HTTPError as exc:
+            logger.warning("Scribe request failed: %s", exc)
+            raise HTTPException(status_code=502, detail=f"Scribe upstream error: {exc}")
+
+    text = (payload.get("text") or "").strip()
+    logger.info("Transcribed %d bytes → %d chars", len(audio_bytes), len(text))
+    return {"text": text}

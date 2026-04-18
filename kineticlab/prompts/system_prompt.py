@@ -61,7 +61,7 @@ async def clinical_response(session_context: dict, patient_input: str) -> str:
         model_name="gemini-2.5-flash",
         system_instruction=SYSTEM_PROMPT,
         generation_config={
-            "max_output_tokens": 800,
+            "max_output_tokens": 1200,
             "temperature": 0.4,
         },
     )
