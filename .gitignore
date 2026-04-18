@@ -24,3 +24,7 @@ Thumbs.db
 
 # Claude Code internals (keep skills, ignore session data)
 .claude/projects/
+venv/
+*.pkl
+__pycache__/
+models/
