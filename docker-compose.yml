@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env.development
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./kineticlab:/app/kineticlab
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    environment:
+      VITE_WS_URL: ws://localhost:8000/ws
+      VITE_MOCK_MODE: "false"
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  frontend_node_modules:
