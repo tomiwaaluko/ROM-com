@@ -53,3 +53,62 @@ All WebSocket messages are JSON with shape: `{type, payload, timestamp}`
 - **v1.1** is additive-only — new message types (`audio_cue`) and new endpoints (`/audio/*`, `/session/*`, `/photon/inbound`). No breaking changes to v1.
 - Changes after Phase 2 (H12) require sign-off from Sakshi (backend) and Tomiwa (frontend consumer).
 - Breaking changes bump to v2 and require a new section in this file documenting the migration.
+---
+
+## LiveAvatar session lifecycle (Sakshi, shipped)
+
+Backend owns the session lifecycle. Frontend (Tomiwa) owns the LiveKit video stream and data channel for speak commands.
+
+### `POST /avatar/start`
+Create a new LiveAvatar session. No body.
+
+**Response 200:**
+```json
+{
+  "session_id": "200e020e-e19e-4a0c-bcd9-c5ebf2177d2c",
+  "livekit_url": "wss://heygen-feapbkvq.livekit.cloud",
+  "livekit_client_token": "eyJhbGci...",
+  "ws_url": "wss://webrtc-signaling.heygen.io/v2-alpha/...",
+  "max_session_duration": 1200
+}
+```
+
+**Frontend flow after this call:**
+1. `npm install @livekit/client`
+2. Join the LiveKit room using `livekit_url` + `livekit_client_token`
+3. Subscribe to the remote video track → render in a `<video>` element
+4. To make the avatar speak: send `{type: "speak", data: {text: "..."}}` via the LiveKit data channel — text comes from the `/ws` WebSocket (Gemini's `clinical_response()` output)
+
+**Error 502:** LiveAvatar upstream failed. Retry or surface friendly error.
+
+### `POST /avatar/stop`
+Stop a session to release credits. Always call when the avatar view closes.
+
+**Body:**
+```json
+{ "session_id": "200e020e-e19e-4a0c-bcd9-c5ebf2177d2c" }
+```
+
+**Response 200:**
+```json
+{ "session_id": "...", "stopped": true }
+```
+
+Idempotent — calling with an unknown session_id returns `{stopped: false, note: "..."}` without error.
+
+### `GET /avatar/status` (debug)
+Lists active avatar sessions this backend is tracking. Useful during integration testing.
+
+**Response:**
+```json
+{ "active_sessions": ["uuid1", "uuid2"], "count": 2 }
+```
+
+### Environment variables required
+- `LIVEAVATAR_API_KEY` — your LiveAvatar API key
+- `LIVEAVATAR_AVATAR_ID` — UUID of the avatar
+- `LIVEAVATAR_VOICE_ID` (optional) — voice to use; defaults to avatar's built-in voice
+- `LIVEAVATAR_SANDBOX` (optional) — `"true"` for free sandbox mode, default production
+
+### Credit management
+LiveAvatar charges per-minute of active session. Always pair `/avatar/start` with `/avatar/stop`. Sessions auto-expire after `max_session_duration` seconds (20 min at time of writing).
