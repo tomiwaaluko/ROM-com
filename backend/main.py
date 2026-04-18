@@ -97,3 +97,49 @@ async def list_audio_cues():
     if not manifest_path.exists():
         return {"cues": {}, "note": "Run generate_audio.py to populate"}
     return {"cues": _json.loads(manifest_path.read_text())}
+
+# ----- LiveAvatar session lifecycle -----
+from kineticlab.liveavatar.client import LiveAvatarClient
+
+_avatar_clients: dict[str, LiveAvatarClient] = {}
+
+
+@app.post("/avatar/start")
+async def avatar_start():
+    client = LiveAvatarClient()
+    try:
+        session = await client.create_session()
+    except Exception as exc:
+        try:
+            await client.stop()
+        except Exception:
+            pass
+        logger.error("LiveAvatar create_session failed: %s", exc)
+        raise HTTPException(status_code=502, detail=f"LiveAvatar upstream error: {exc}")
+    _avatar_clients[session["session_id"]] = client
+    logger.info("LiveAvatar session started: %s", session["session_id"])
+    return session
+
+
+@app.post("/avatar/stop")
+async def avatar_stop(payload: dict):
+    session_id = payload.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Missing session_id in body")
+    client = _avatar_clients.pop(session_id, None)
+    if client is None:
+        return {"session_id": session_id, "stopped": False, "note": "No active session in registry"}
+    try:
+        await client.stop()
+    except Exception as exc:
+        logger.warning("avatar_stop: client.stop() raised: %s", exc)
+    logger.info("LiveAvatar session stopped: %s", session_id)
+    return {"session_id": session_id, "stopped": True}
+
+
+@app.get("/avatar/status")
+async def avatar_status():
+    return {
+        "active_sessions": list(_avatar_clients.keys()),
+        "count": len(_avatar_clients),
+    }
