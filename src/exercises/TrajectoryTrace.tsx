@@ -267,11 +267,12 @@ function SceneContent({ mockMode }: { mockMode: boolean }) {
   // Handle accuracy updates from PathLine
   const handleAccuracyUpdate = useCallback(
     (hits: number, total: number) => {
+      if (mockMode) return;
       const acc = calculateAccuracy(hits, total);
       setAccuracy(acc);
       updateScore(Math.floor(hits * 0.5), acc / 100);
     },
-    [updateScore]
+    [mockMode, updateScore]
   );
 
   // Frame update — track elapsed time and path completion

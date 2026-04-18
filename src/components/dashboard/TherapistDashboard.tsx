@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useMockData } from '../../hooks/useMockData';
 import { useCalibrationStore } from '../../stores/calibrationStore';
+import { useSessionStore } from '../../stores/sessionStore';
 import { mockSessionHistory } from '../../utils/mockDashboardData';
 import { FMAScoreCard } from './FMAScoreCard';
 import { SessionHistoryChart } from './SessionHistoryChart';
@@ -13,17 +14,30 @@ type Tab = 'clinical' | 'researcher';
 
 export function TherapistDashboard() {
   const navigate = useNavigate();
-  const { status } = useWebSocket();
+  const { status, isMockMode } = useWebSocket();
   useMockData('post-calibration');
 
   const currentUserId = useCalibrationStore((s) => s.currentUserId);
   const switchUser = useCalibrationStore((s) => s.switchUser);
   const userProfiles = useCalibrationStore((s) => s.userProfiles);
+  const fmaScore = useSessionStore((s) => s.fmaScore);
 
   const [activeTab, setActiveTab] = useState<Tab>('clinical');
 
   const latestSession = mockSessionHistory[mockSessionHistory.length - 1];
-  const currentScore = latestSession.fmaScore;
+  const hasLiveFmaScore =
+    fmaScore.domain_a > 0 &&
+    fmaScore.domain_c > 0 &&
+    fmaScore.domain_e > 0 &&
+    fmaScore.total > 0;
+  const currentScore = !isMockMode && hasLiveFmaScore
+    ? {
+        domainA: fmaScore.domain_a,
+        domainC: fmaScore.domain_c,
+        domainE: fmaScore.domain_e,
+        total: fmaScore.total,
+      }
+    : latestSession.fmaScore;
 
   const availableUsers = Object.keys(userProfiles).length > 0
     ? Object.keys(userProfiles)

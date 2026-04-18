@@ -37,6 +37,7 @@ interface CalibrationState {
   romProfile: ROMProfile | null;
   isRecognized: boolean;
   liveAngle: number;
+  liveAnglesByJoint: Record<string, number>;
   calibrationComplete: boolean;
   capturedAngles: Record<string, number>;
 
@@ -48,7 +49,7 @@ interface CalibrationState {
   nextPhase: () => void;
   setROMProfile: (profile: ROMProfile) => void;
   setRecognized: (recognized: boolean) => void;
-  updateLiveAngle: (angle: number) => void;
+  updateLiveAngle: (angle: number, joint?: string) => void;
   captureMaxAngle: (phase: string, angle: number) => void;
   switchUser: (userId: string) => void;
   resetCalibration: () => void;
@@ -68,6 +69,7 @@ export const useCalibrationStore = create<CalibrationState>()(
       romProfile: null,
       isRecognized: false,
       liveAngle: 0,
+      liveAnglesByJoint: {},
       calibrationComplete: false,
       capturedAngles: {},
       userProfiles: {},
@@ -132,20 +134,25 @@ export const useCalibrationStore = create<CalibrationState>()(
 
       setRecognized: (recognized) => set({ isRecognized: recognized }),
 
-      updateLiveAngle: (angle) => {
-        const { phase, capturedAngles } = get();
+      updateLiveAngle: (angle, joint) => {
+        const { phase, capturedAngles, liveAnglesByJoint } = get();
+        const nextLiveAnglesByJoint = joint
+          ? { ...liveAnglesByJoint, [joint]: angle }
+          : liveAnglesByJoint;
+
         // During capture phases, also track max
         if (CAPTURE_PHASES.includes(phase)) {
           const currentMax = capturedAngles[phase] ?? 0;
           if (angle > currentMax) {
             set({
               liveAngle: angle,
+              liveAnglesByJoint: nextLiveAnglesByJoint,
               capturedAngles: { ...capturedAngles, [phase]: angle },
             });
             return;
           }
         }
-        set({ liveAngle: angle });
+        set({ liveAngle: angle, liveAnglesByJoint: nextLiveAnglesByJoint });
       },
 
       captureMaxAngle: (phase, angle) => {
@@ -168,6 +175,7 @@ export const useCalibrationStore = create<CalibrationState>()(
             isRecognized: true,
             phase: 'complete',
             liveAngle: 0,
+            liveAnglesByJoint: {},
           });
         } else {
           set({
@@ -178,6 +186,7 @@ export const useCalibrationStore = create<CalibrationState>()(
             isRecognized: false,
             phase: 'idle',
             liveAngle: 0,
+            liveAnglesByJoint: {},
           });
         }
       },
@@ -188,6 +197,7 @@ export const useCalibrationStore = create<CalibrationState>()(
           romProfile: null,
           isRecognized: false,
           liveAngle: 0,
+          liveAnglesByJoint: {},
           calibrationComplete: false,
           capturedAngles: {},
         }),
