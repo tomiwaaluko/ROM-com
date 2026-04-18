@@ -1,0 +1,22 @@
+{
+  "cue_0": {
+    "file": "cue_0.mp3",
+    "text": "Take your time. We'll begin whenever you're ready."
+  },
+  "cue_1": {
+    "file": "cue_1.mp3",
+    "text": "That's wonderful. Keep going at your own pace."
+  },
+  "cue_2": {
+    "file": "cue_2.mp3",
+    "text": "Let's gently find your comfortable range of motion."
+  },
+  "cue_3": {
+    "file": "cue_3.mp3",
+    "text": "Beautiful work. Everything's saved."
+  },
+  "cue_4": {
+    "file": "cue_4.mp3",
+    "text": "You did so well today. Rest now."
+  }
+}
