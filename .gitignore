@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python / ML artifacts
+venv/
+*.pkl
+__pycache__/
+models/
+gesture_data.npy
