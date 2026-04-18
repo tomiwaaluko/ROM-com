@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCalibrationStore, CAPTURE_PHASES } from '../../stores/calibrationStore';
 import type { CalibrationPhase } from '../../stores/calibrationStore';
+import { useWebSocketStore } from '../../stores/websocketStore';
 import { RecognitionIndicator } from './RecognitionIndicator';
 import { ROMProgressArc } from './ROMProgressArc';
 import { useCalibrationMock } from '../../hooks/useCalibrationMock';
@@ -45,6 +46,21 @@ function playBeep(frequency: number, duration: number) {
 }
 
 export function CalibrationWizard() {
+  const isMockMode = useWebSocketStore((s) => s.isMockMode);
+
+  return isMockMode ? <MockCalibrationWizard /> : <LiveCalibrationWizard />;
+}
+
+function MockCalibrationWizard() {
+  useCalibrationMock();
+  return <CalibrationWizardContent autoAdvance />;
+}
+
+function LiveCalibrationWizard() {
+  return <CalibrationWizardContent />;
+}
+
+function CalibrationWizardContent({ autoAdvance = false }: { autoAdvance?: boolean }) {
   const phase = useCalibrationStore((s) => s.phase);
   const isRecognized = useCalibrationStore((s) => s.isRecognized);
   const liveAngle = useCalibrationStore((s) => s.liveAngle);
@@ -59,9 +75,7 @@ export function CalibrationWizard() {
 
   const navigate = useNavigate();
   const prevPhaseRef = useRef(phase);
-
-  // Activate mock data for calibration
-  useCalibrationMock();
+  const autoAdvancedPhaseRef = useRef<string | null>(null);
 
   // Sound effects on phase transitions
   useEffect(() => {
@@ -85,6 +99,22 @@ export function CalibrationWizard() {
   const handleNext = useCallback(() => {
     nextPhase();
   }, [nextPhase]);
+
+  useEffect(() => {
+    if (!autoAdvance) return;
+    if (phase === 'intro') {
+      const timer = setTimeout(() => nextPhase(), 900);
+      return () => clearTimeout(timer);
+    }
+    if (
+      CAPTURE_PHASES.includes(phase) &&
+      liveAngle >= 0.23 &&
+      autoAdvancedPhaseRef.current !== phase
+    ) {
+      autoAdvancedPhaseRef.current = phase;
+      nextPhase();
+    }
+  }, [autoAdvance, phase, liveAngle, nextPhase]);
 
   const handleSwitchUser = useCallback(() => {
     const otherUser = currentUserId === 'user_1' ? 'user_2' : 'user_1';

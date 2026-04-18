@@ -11,6 +11,14 @@ import {
 import { mockSessionHistory } from '../../utils/mockDashboardData';
 import type { MockSession } from '../../utils/mockDashboardData';
 
+type SessionClickEvent = {
+  activePayload?: Array<{
+    payload?: {
+      raw?: MockSession;
+    };
+  }>;
+};
+
 export function SessionHistoryChart() {
   const [selectedSession, setSelectedSession] = useState<MockSession | null>(null);
 
@@ -30,8 +38,10 @@ export function SessionHistoryChart() {
             data={data}
             margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
             onClick={(e) => {
-              if (e?.activePayload?.[0]) {
-                setSelectedSession(e.activePayload[0].payload.raw);
+              const event = e as SessionClickEvent | undefined;
+              const session = event?.activePayload?.[0]?.payload?.raw;
+              if (session) {
+                setSelectedSession(session);
               }
             }}
           >

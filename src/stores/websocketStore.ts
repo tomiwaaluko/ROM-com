@@ -6,8 +6,17 @@ import { useExerciseStore } from './exerciseStore';
 // ── Message types from backend ──────────────────────────────────────────────
 export interface WSMessage {
   type: string;
-  payload: Record<string, unknown>;
+  payload?: Record<string, unknown>;
   timestamp?: number;
+  calibrated?: boolean;
+  confidence?: number;
+  normalized_features?: Record<string, number | undefined>;
+  landmarks?: Array<[number, number, number]>;
+}
+
+interface LastGesture {
+  name: string;
+  confidence: number;
 }
 
 interface WebSocketState {
@@ -18,6 +27,7 @@ interface WebSocketState {
   maxReconnectAttempts: number;
   reconnectDelay: number;
   isMockMode: boolean;
+  lastGesture: LastGesture | null;
 
   // Actions
   connect: () => void;
@@ -37,6 +47,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
   maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
   reconnectDelay: BASE_RECONNECT_DELAY,
   isMockMode: import.meta.env.VITE_MOCK_MODE === 'true',
+  lastGesture: null,
 
   connect: () => {
     const state = get();
@@ -113,9 +124,57 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
 
   // ── Message router — dispatches incoming messages to the right store ────
   routeMessage: (message: WSMessage) => {
-    const { type, payload } = message;
+    const { type } = message;
+    const payload = message.payload ?? {};
 
     switch (type) {
+      // Backend schema v1.1 messages
+      case 'gesture':
+        useExerciseStore.getState().updateNormalizedAngle(payload.normalized_rom as number);
+        set({
+          lastGesture: {
+            name: payload.name as string,
+            confidence: payload.confidence as number,
+          },
+        });
+        break;
+      case 'fma_score':
+        useSessionStore.getState().updateFMAScore({
+          domain_a: payload.domain_a as number,
+          domain_c: payload.domain_c as number,
+          domain_e: payload.domain_e as number,
+          total: payload.total as number,
+        });
+        break;
+      case 'rom_update':
+        useCalibrationStore.getState().updateLiveAngle(payload.min as number, payload.joint as string);
+        break;
+      case 'exercise_event':
+        useExerciseStore.getState().updateScore({
+          target_hit: payload.target_hit as string,
+          accuracy: payload.accuracy as number,
+        });
+        break;
+      case 'pipeline': {
+        const calibrationStore = useCalibrationStore.getState();
+        useExerciseStore.getState().updateMotionFeatures({
+          ...message.normalized_features,
+          landmarks: message.landmarks,
+        });
+        if (message.calibrated === false) {
+          calibrationStore.updateLiveAngle(message.normalized_features?.shoulder_flexion_r ?? 0);
+          calibrationStore.setRecognized((message.confidence ?? 0) > 0.6);
+        } else if (message.calibrated === true && !calibrationStore.calibrationComplete) {
+          calibrationStore.nextPhase();
+        }
+        break;
+      }
+      case 'pong':
+        break;
+      case 'error':
+        console.warn('[WS] Backend error:', payload);
+        break;
+
       // Calibration data from MediaPipe
       case 'calibration:angle':
         useCalibrationStore.getState().updateLiveAngle(payload.angle as number);

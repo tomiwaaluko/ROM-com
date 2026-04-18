@@ -7,13 +7,15 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useCalibrationStore } from '../../stores/calibrationStore';
+import { useWebSocketStore } from '../../stores/websocketStore';
 import { mockROMData, fullROMData } from '../../utils/mockDashboardData';
 
 export function ROMEnvelopeChart() {
   const romProfile = useCalibrationStore((s) => s.romProfile);
+  const isMockMode = useWebSocketStore((s) => s.isMockMode);
 
-  // Use calibration store if available, otherwise mock data
-  const patient = romProfile
+  // Use live calibration data only outside mock mode; mock mode keeps seeded dashboard defaults.
+  const patient = !isMockMode && romProfile
     ? {
         shoulderFlex: romProfile.maxFlexion,
         shoulderAbd: romProfile.maxAbduction,
