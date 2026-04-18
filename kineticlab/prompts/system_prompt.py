@@ -1,7 +1,7 @@
-"""Clinical system prompt and GPT-4o wrapper for KineticLab patient-facing responses."""
+"""Clinical system prompt and Gemini wrapper for KineticLab patient-facing responses."""
 import os
 
-from openai import AsyncOpenAI
+import google.generativeai as genai
 
 from kineticlab.prompts.context import build_user_message
 
@@ -32,11 +32,11 @@ Hard rules — never violate these:
 Tone: calm, warm, factual. Like a patient physical therapist, not a coach."""
 
 
-def _require_openai_key() -> str:
-    val = os.environ.get("OPENAI_API_KEY")
+def _require_gemini_key() -> str:
+    val = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not val:
         raise RuntimeError(
-            "Missing required environment variable: OPENAI_API_KEY. "
+            "Missing required environment variable: GEMINI_API_KEY (or GOOGLE_API_KEY). "
             "Set it before starting the application."
         )
     return val
@@ -45,28 +45,27 @@ def _require_openai_key() -> str:
 async def clinical_response(session_context: dict, patient_input: str) -> str:
     """Generate a clinically safe, guardrailed response for the patient-facing avatar.
 
-    Calls GPT-4o with the KineticLab system prompt and injected session context.
-    Streams the response and returns the full accumulated text.
+    Calls Gemini 1.5 Flash with the KineticLab system prompt and injected session context.
+    Returns the full accumulated text.
 
     Args:
         session_context: SessionContext dict — must contain all required keys.
         patient_input: Transcribed speech or text from the patient.
     """
-    api_key = _require_openai_key()
-    oai = AsyncOpenAI(api_key=api_key)
+    api_key = _require_gemini_key()
+    genai.configure(api_key=api_key)
+
     user_message = build_user_message(session_context, patient_input)
-    response = await oai.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
-        ],
-        max_tokens=150,
-        temperature=0.4,
-        stream=True,
+
+    model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",
+        system_instruction=SYSTEM_PROMPT,
+        generation_config={
+            "max_output_tokens": 800,
+            "temperature": 0.4,
+        },
     )
-    full_text = ""
-    async for chunk in response:
-        delta = chunk.choices[0].delta.content or ""
-        full_text += delta
-    return full_text
+
+    # Gemini's async API: generate_content_async returns the full response
+    response = await model.generate_content_async(user_message)
+    return (response.text or "").strip()
