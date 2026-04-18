@@ -37,6 +37,7 @@ from mediapipe_tracker import LandmarkTracker
 from feature_extractor import FeatureExtractor
 from rom_calibration import ROMCalibrator, ROMNormalizer, ROMProfile
 from gesture_classifier import GestureClassifier
+from fma_scoring import FMAScorer
 
 MODEL_PATH = Path("gesture_classifier.pkl")
 PROFILE_DIR = Path("rom_profiles")   # saved per-user calibration profiles
@@ -68,6 +69,12 @@ class PipelineRunner:
         self.normalizer: Optional[ROMNormalizer] = None
         self.calibrated = False
         self.current_user = "user"
+
+        # FMA scoring
+        self.fma_scorer = FMAScorer()
+        self._session_stats: dict = {}   # running max of normalized features per session
+        self._fma_result = None          # latest computed FMA score
+        self._fma_frame_counter = 0      # recompute every 30 frames (~1/sec)
 
         # Runtime flags
         self._running = False
@@ -151,6 +158,12 @@ class PipelineRunner:
                     "calibrated": self.calibrated,
                     "calibration_progress": 0.0,
                     "timestamp_ms": msg["timestamp_ms"],
+                    # Live FMA-UE subscale score (updates ~1/sec after calibration)
+                    "fma_total": self._fma_result.total_score if self._fma_result else None,
+                    "fma_severity": self._fma_result.severity if self._fma_result else None,
+                    "fma_domain_a": self._fma_result.domain_a_score if self._fma_result else None,
+                    "fma_domain_c": self._fma_result.domain_c_score if self._fma_result else None,
+                    "fma_domain_e": self._fma_result.domain_e_score if self._fma_result else None,
                 }
 
                 if features is not None:
@@ -174,6 +187,29 @@ class PipelineRunner:
                             for k, v in features.items()
                         }
                         pred = self.classifier.predict(norm_features)
+
+                        # --- Update session stats (running max for FMA scoring) ---
+                        norm = norm_result["normalized"]
+                        gesture = pred["gesture"]
+                        self._update_session_stats(norm, gesture)
+
+                        # --- Recompute FMA score every 30 frames ---
+                        self._fma_frame_counter += 1
+                        if self._fma_frame_counter % 30 == 0:
+                            import time as _time
+                            self._fma_result = self.fma_scorer.score_session(
+                                self._session_stats,
+                                user_id=self.current_user,
+                                session_id=f"live_{self.current_user}",
+                                timestamp=_time.time(),
+                            )
+                        # Inject latest FMA into output
+                        if self._fma_result:
+                            output["fma_total"]    = self._fma_result.total_score
+                            output["fma_severity"] = self._fma_result.severity
+                            output["fma_domain_a"] = self._fma_result.domain_a_score
+                            output["fma_domain_c"] = self._fma_result.domain_c_score
+                            output["fma_domain_e"] = self._fma_result.domain_e_score
                     else:
                         # Pre-calibration: classify on raw features
                         pred = self.classifier.predict(features)
@@ -216,6 +252,58 @@ class PipelineRunner:
             if show_window:
                 cv2.destroyAllWindows()
 
+    def _update_session_stats(self, norm: dict, gesture: str):
+        """Track running max of normalized features for FMA scoring."""
+        # Map normalized feature keys → FMA session stat keys
+        key_map = {
+            "shoulder_flexion_r":   "shoulder_flexion_r_max",
+            "shoulder_abduction_r": "shoulder_abduction_r_max",
+            "elbow_angle_r":        "elbow_extension_r_max",
+            "wrist_angle_r":        "wrist_flexion_r_max",
+            "forearm_rotation":     "forearm_pronation_r_range",
+            "tremor_r":             "tremor_variance_r_mean",
+            "wrist_velocity_r":     "wrist_flexion_r_smoothness",
+        }
+        for feat_key, stat_key in key_map.items():
+            val = norm.get(feat_key, 0.0)
+            # tremor: track mean (lower is better) — use running min instead
+            if "tremor" in stat_key:
+                self._session_stats[stat_key] = min(
+                    self._session_stats.get(stat_key, 1.0), val
+                )
+            else:
+                self._session_stats[stat_key] = max(
+                    self._session_stats.get(stat_key, 0.0), val
+                )
+
+        # Gesture-specific accuracy stats
+        if gesture == "target_reach":
+            conf = self._session_stats.get("_reach_conf_count", 0)
+            total = self._session_stats.get("_reach_total", 0) + 1
+            self._session_stats["_reach_total"] = total
+            self._session_stats["reach_accuracy_mean"] = (
+                (self._session_stats.get("reach_accuracy_mean", 0.0) * conf + norm.get("shoulder_flexion_r", 0.0))
+                / total
+            )
+            self._session_stats["_reach_conf_count"] = total
+
+        if gesture == "trajectory_trace":
+            total = self._session_stats.get("_trace_total", 0) + 1
+            self._session_stats["_trace_total"] = total
+            self._session_stats["trajectory_accuracy_mean"] = (
+                (self._session_stats.get("trajectory_accuracy_mean", 0.0) * (total - 1) + norm.get("wrist_angle_r", 0.0))
+                / total
+            )
+
+        if gesture == "bimanual_reach":
+            total = self._session_stats.get("_bim_total", 0) + 1
+            self._session_stats["_bim_total"] = total
+            self._session_stats["bimanual_timing_score"] = (
+                (self._session_stats.get("bimanual_timing_score", 0.0) * (total - 1) + norm.get("shoulder_flexion_r", 0.0))
+                / total
+            )
+            self._session_stats["movement_speed_score"] = norm.get("wrist_velocity_r", 0.0)
+
     def _post_to_backend(self, output: dict):
         """POST gesture data to Sakshi's FastAPI backend."""
         if output["gesture"] == "unknown":
@@ -229,6 +317,11 @@ class PipelineRunner:
                     "name": output["gesture"],
                     "confidence": output["confidence"],
                     "normalized_rom": round(normalized_rom, 4),
+                    "fma_total": output.get("fma_total"),
+                    "fma_severity": output.get("fma_severity"),
+                    "fma_domain_a": output.get("fma_domain_a"),
+                    "fma_domain_c": output.get("fma_domain_c"),
+                    "fma_domain_e": output.get("fma_domain_e"),
                 },
                 timeout=0.05,  # drop if backend is slow — don't block the pipeline
             )
