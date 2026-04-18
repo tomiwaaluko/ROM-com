@@ -1,4 +1,4 @@
-"""ASR layer: Deepgram (streaming, preferred) and Whisper (REST fallback)."""
+"""ASR layer: Deepgram (streaming, preferred) and ElevenLabs Scribe (REST fallback)."""
 from __future__ import annotations
 
 import asyncio
@@ -8,6 +8,7 @@ import os
 import wave
 from typing import Awaitable, Callable
 
+import httpx
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,7 @@ class DeepgramASRClient:
 
 
 def _to_wav(raw_pcm: bytes, sample_rate: int = 16000) -> io.BytesIO:
-    """Wrap raw PCM bytes in a WAV container for Whisper."""
+    """Wrap raw PCM bytes in a WAV container for upload."""
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wf:
         wf.setnchannels(1)
@@ -88,20 +89,28 @@ def _to_wav(raw_pcm: bytes, sample_rate: int = 16000) -> io.BytesIO:
     return buf
 
 
-class WhisperASRClient:
-    """Fallback ASR via OpenAI Whisper REST API (~300–600ms per utterance).
+class ElevenLabsScribeASRClient:
+    """ASR via ElevenLabs Scribe REST API (~400-700ms per utterance).
 
     Buffers audio and transcribes when silence is detected (RMS VAD).
+    Single-vendor with TTS — one API key powers both STT and TTS.
     """
 
-    def __init__(self, on_transcript: _TranscriptCallback) -> None:
-        from openai import AsyncOpenAI
+    SCRIBE_URL = "https://api.elevenlabs.io/v1/speech-to-text"
+    MODEL_ID = "scribe_v1"
 
-        api_key = os.environ.get("OPENAI_API_KEY")
+    def __init__(self, on_transcript: _TranscriptCallback) -> None:
+        api_key = (
+            os.environ.get("ELEVEN_API_KEY")
+            or os.environ.get("ELEVENLABS_API_KEY")
+        )
         if not api_key:
-            raise RuntimeError("Missing required environment variable: OPENAI_API_KEY.")
+            raise RuntimeError(
+                "Missing required environment variable: ELEVEN_API_KEY (or ELEVENLABS_API_KEY)."
+            )
         self.on_transcript = on_transcript
-        self._client = AsyncOpenAI(api_key=api_key)
+        self._api_key = api_key
+        self._client = httpx.AsyncClient(timeout=30.0)
         self._buffer: list[bytes] = []
         self._silent_chunks: int = 0
         self._silence_limit: int = 6  # ~800ms at 128ms/chunk
@@ -123,21 +132,32 @@ class WhisperASRClient:
         audio_data = b"".join(self._buffer)
         self._buffer = []
         self._silent_chunks = 0
+
         wav_buf = _to_wav(audio_data)
-        resp = await self._client.audio.transcriptions.create(
-            model="whisper-1",
-            file=("audio.wav", wav_buf, "audio/wav"),
-            language="en",
-        )
-        text = resp.text.strip()
-        if text and text != "[BLANK_AUDIO]" and len(text.split()) >= 3:
-            logger.debug("[ASR Whisper] Transcript: %s", text)
+        files = {"file": ("audio.wav", wav_buf, "audio/wav")}
+        data = {"model_id": self.MODEL_ID, "language_code": "en"}
+        headers = {"xi-api-key": self._api_key}
+
+        try:
+            resp = await self._client.post(
+                self.SCRIBE_URL, headers=headers, files=files, data=data
+            )
+            resp.raise_for_status()
+            payload = resp.json()
+        except httpx.HTTPError as exc:
+            logger.warning("[ASR Scribe] Request failed: %s", exc)
+            return
+
+        text = (payload.get("text") or "").strip()
+        if text and len(text.split()) >= 2:
+            logger.debug("[ASR Scribe] Transcript: %s", text)
             await self.on_transcript(text)
 
     async def close(self) -> None:
-        """Flush any remaining buffered audio."""
+        """Flush any remaining buffered audio and release client."""
         if self._buffer:
             await self._transcribe_and_reset()
+        await self._client.aclose()
 
 
 class MockASRClient:
@@ -158,18 +178,20 @@ class MockASRClient:
         """No-op."""
 
 
-def get_asr_client(on_transcript: _TranscriptCallback) -> DeepgramASRClient | WhisperASRClient | MockASRClient:
+def get_asr_client(
+    on_transcript: _TranscriptCallback,
+) -> DeepgramASRClient | ElevenLabsScribeASRClient | MockASRClient:
     """Return the best available ASR client.
 
-    Priority: MOCK_MODE=true → Deepgram (DEEPGRAM_API_KEY) → Whisper (OPENAI_API_KEY).
-    Raises RuntimeError if no credentials are available.
+    Priority: MOCK_MODE=true → Deepgram (DEEPGRAM_API_KEY) → ElevenLabs Scribe
+    (ELEVEN_API_KEY / ELEVENLABS_API_KEY). Raises RuntimeError if no credentials.
     """
     if os.environ.get("MOCK_MODE", "false").lower() == "true":
         return MockASRClient(on_transcript)
     if os.environ.get("DEEPGRAM_API_KEY"):
         return DeepgramASRClient(on_transcript)
-    if os.environ.get("OPENAI_API_KEY"):
-        return WhisperASRClient(on_transcript)
+    if os.environ.get("ELEVEN_API_KEY") or os.environ.get("ELEVENLABS_API_KEY"):
+        return ElevenLabsScribeASRClient(on_transcript)
     raise RuntimeError(
-        "No ASR credentials found. Set DEEPGRAM_API_KEY or OPENAI_API_KEY."
+        "No ASR credentials found. Set DEEPGRAM_API_KEY or ELEVEN_API_KEY."
     )

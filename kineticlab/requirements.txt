@@ -9,3 +9,4 @@ websockets
 pytest
 pytest-asyncio
 uvicorn
+google-generativeai
