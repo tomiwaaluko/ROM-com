@@ -7,7 +7,10 @@ ENV PYTHONPATH=/app:/app/backend
 WORKDIR /app
 
 COPY backend/requirements.txt /tmp/backend-requirements.txt
-RUN pip install --no-cache-dir -r /tmp/backend-requirements.txt
+COPY kineticlab/requirements.txt /tmp/kineticlab-requirements.txt
+RUN pip install --no-cache-dir \
+    -r /tmp/backend-requirements.txt \
+    -r /tmp/kineticlab-requirements.txt
 
 COPY backend ./backend
 COPY kineticlab ./kineticlab
