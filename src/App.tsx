@@ -1,10 +1,12 @@
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useMockData } from './hooks/useMockData';
 import { useCalibrationStore } from './stores/calibrationStore';
 import { useExerciseStore } from './stores/exerciseStore';
 import { useSessionStore } from './stores/sessionStore';
+import { CalibrationWizard } from './components/calibration/CalibrationWizard';
 
-function App() {
+function Dashboard() {
   const { status, isMockMode } = useWebSocket();
   useMockData('pre-calibration');
 
@@ -27,7 +29,29 @@ function App() {
         <li>Score: {score}</li>
         <li>Streak: {streak}</li>
       </ul>
+      <hr />
+      <Link to="/calibration" style={{ fontSize: 18 }}>→ Launch Calibration Wizard</Link>
     </div>
+  );
+}
+
+function CalibrationPage() {
+  const { status } = useWebSocket();
+  // Only render wizard once WebSocket (or mock) is connected
+  if (status !== 'connected') {
+    return <div style={{ color: '#fff', padding: 24 }}>Connecting...</div>;
+  }
+  return <CalibrationWizard />;
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/calibration" element={<CalibrationPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
