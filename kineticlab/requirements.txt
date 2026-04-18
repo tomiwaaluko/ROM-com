@@ -1,0 +1,11 @@
+httpx
+openai
+deepgram-sdk
+fastapi
+motor
+numpy
+sounddevice
+websockets
+pytest
+pytest-asyncio
+uvicorn

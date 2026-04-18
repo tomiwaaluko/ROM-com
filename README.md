@@ -2,6 +2,26 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Docker
+
+Run the frontend and backend together with Docker Compose:
+
+```sh
+docker compose up --build -d
+```
+
+Open the app at http://localhost:5173. The FastAPI backend runs at http://localhost:8000 and exposes the WebSocket at `ws://localhost:8000/ws`.
+
+Useful commands:
+
+```sh
+docker compose ps
+docker compose logs -f
+docker compose down
+```
+
+Environment values are loaded at runtime from `.env.development`; they are not copied into the Docker images.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
