@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useWebSocketStore } from '../stores/websocketStore';
+import { useSessionStore } from '../stores/sessionStore';
 
 export type MockScenario = 'pre-calibration' | 'post-calibration' | 'target-reach' | 'trajectory-trace';
 
@@ -14,6 +15,17 @@ export function useMockData(scenario: MockScenario = 'pre-calibration') {
   const routeMessage = useWebSocketStore((s) => s.routeMessage);
   const frameRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Seed a realistic streak value for exercise scenarios so HUD multiplier is visible
+  useEffect(() => {
+    if (!isMockMode) return;
+    if (scenario === 'target-reach' || scenario === 'trajectory-trace') {
+      const currentStreak = useSessionStore.getState().streak;
+      if (currentStreak < 5) {
+        useSessionStore.setState({ streak: 5 });
+      }
+    }
+  }, [isMockMode, scenario]);
 
   useEffect(() => {
     if (!isMockMode) return;
