@@ -29,6 +29,7 @@ import json
 import asyncio
 import cv2
 import numpy as np
+import requests
 from pathlib import Path
 from typing import Optional, Callable
 
@@ -182,6 +183,7 @@ class PipelineRunner:
 
                 # --- Emit to WebSocket / callback ---
                 self.on_message(output)
+                self._post_to_backend(output)
 
                 # --- HUD overlay ---
                 if show_window:
@@ -213,6 +215,25 @@ class PipelineRunner:
             cap.release()
             if show_window:
                 cv2.destroyAllWindows()
+
+    def _post_to_backend(self, output: dict):
+        """POST gesture data to Sakshi's FastAPI backend."""
+        if output["gesture"] == "unknown":
+            return
+        norm = output.get("normalized_features", {})
+        normalized_rom = sum(norm.values()) / len(norm) if norm else 0.0
+        try:
+            requests.post(
+                "http://localhost:8000/internal/gesture",
+                json={
+                    "name": output["gesture"],
+                    "confidence": output["confidence"],
+                    "normalized_rom": round(normalized_rom, 4),
+                },
+                timeout=0.05,  # drop if backend is slow — don't block the pipeline
+            )
+        except Exception:
+            pass  # pipeline keeps running even if backend is down
 
     def stop(self):
         self._running = False
