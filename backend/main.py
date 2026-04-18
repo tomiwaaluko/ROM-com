@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from schemas import GestureMessage
 from connection_manager import manager
 
+from kineticlab.photon.router import router as photon_router
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Mount Sreekar's Photon iMessage webhook router (handles POST /photon/inbound)
+app.include_router(photon_router)
 
 @app.get("/")
 async def root():
