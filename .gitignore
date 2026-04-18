@@ -1,3 +1,11 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+
 # Logs
 logs
 *.log
@@ -7,10 +15,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.template
+!backend/.env.example
 
 # Editor directories and files
 .vscode/*
@@ -25,7 +35,20 @@ dist-ssr
 
 # Python / ML artifacts
 venv/
+.venv/
+env/
 *.pkl
 __pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
 models/
 gesture_data.npy
+
+# OS / archive artifacts
+Thumbs.db
+*.zip
+
+# Docker / local runtime
+docker-compose.override.yml
