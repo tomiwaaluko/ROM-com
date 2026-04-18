@@ -1,0 +1,79 @@
+#!/bin/bash
+# KineticLab — Sreekar Workstream Pre-Commit Hook
+# Place at .claude/hooks/pre-commit and make executable: chmod +x .claude/hooks/pre-commit
+# Runs automatically before every git commit.
+
+echo "🏥 KineticLab pre-commit — Sreekar's workstream"
+
+ERRORS=0
+
+# ── 1. No hardcoded API keys ──────────────────────────────────────────────────
+echo "Checking for hardcoded API keys..."
+if grep -rn "sk-\|Bearer [a-zA-Z0-9]\{20,\}\|api_key\s*=\s*['\"][a-zA-Z0-9]" \
+    --include="*.py" . | grep -v "os.environ" | grep -v "#"; then
+  echo "❌ Hardcoded API key found. Use os.environ[] only."
+  ERRORS=$((ERRORS + 1))
+fi
+
+# ── 2. Clinical guardrails present in every LLM call file ────────────────────
+echo "Checking clinical guardrails..."
+LLM_FILES=$(grep -rl "openai\|anthropic\|claude\|gpt\|chat.completions" --include="*.py" . 2>/dev/null)
+for f in $LLM_FILES; do
+  if ! grep -q "clinical_prompt_guardrails\|You are NOT a doctor\|rehabilitation companion" "$f"; then
+    echo "⚠️  LLM call in $f missing clinical guardrails. Add before committing."
+    ERRORS=$((ERRORS + 1))
+  fi
+done
+
+# ── 3. Mock fallback present for LiveAvatar ───────────────────────────────────
+echo "Checking LiveAvatar mock fallback..."
+AVATAR_CLIENT=$(find . -name "*.py" | xargs grep -l "send_task\|heygen\|streaming.task" 2>/dev/null | head -1)
+if [ -n "$AVATAR_CLIENT" ]; then
+  if ! grep -q "MOCK_AVATAR\|mock_ok" "$AVATAR_CLIENT"; then
+    echo "❌ LiveAvatar mock fallback missing in $AVATAR_CLIENT"
+    ERRORS=$((ERRORS + 1))
+  fi
+fi
+
+# ── 4. Mock fallback present for Photon ──────────────────────────────────────
+echo "Checking Photon mock fallback..."
+PHOTON_CLIENT=$(find . -name "*.py" | xargs grep -l "photon\|imessage\|send_imessage" 2>/dev/null | head -1)
+if [ -n "$PHOTON_CLIENT" ]; then
+  if ! grep -q "MOCK_PHOTON\|mock_sent" "$PHOTON_CLIENT"; then
+    echo "❌ Photon mock fallback missing in $PHOTON_CLIENT"
+    ERRORS=$((ERRORS + 1))
+  fi
+fi
+
+# ── 5. No FDA claims anywhere ─────────────────────────────────────────────────
+echo "Checking for FDA claims..."
+if grep -rni "fda-cleared\|fda-approved\|fda validated\|clinically validated\|clinically proven\|medically certified" \
+    --include="*.py" --include="*.md" --include="*.txt" --include="*.json" .; then
+  echo "❌ FDA claim found. Remove before committing."
+  ERRORS=$((ERRORS + 1))
+fi
+
+# ── 6. No prohibited phrases in message templates ────────────────────────────
+echo "Checking for prohibited phrases in templates..."
+PROHIBITED=("you failed" "you didn't complete" "you should have" "you're behind" "you must quit")
+for phrase in "${PROHIBITED[@]}"; do
+  if grep -rni "$phrase" --include="*.py" --include="*.md" . | grep -v "PROHIBITED\|prohibited\|Never allow"; then
+    echo "⚠️  Prohibited phrase '$phrase' found outside guardrails file."
+    ERRORS=$((ERRORS + 1))
+  fi
+done
+
+# ── 7. Latency check reminder ─────────────────────────────────────────────────
+if grep -rn "max_tokens" --include="*.py" . | grep -v "#" | awk -F= '{print $2}' | grep -qE "[0-9]{4,}"; then
+  echo "⚠️  LLM call with max_tokens > 999 found. Keep low for < 2s latency target."
+fi
+
+# ── Summary ───────────────────────────────────────────────────────────────────
+echo ""
+if [ $ERRORS -eq 0 ]; then
+  echo "✅ All pre-commit checks passed."
+  exit 0
+else
+  echo "❌ $ERRORS error(s) found. Fix before committing."
+  exit 1
+fi
