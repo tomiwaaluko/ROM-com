@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCalibrationStore, CAPTURE_PHASES } from '../../stores/calibrationStore';
 import type { CalibrationPhase } from '../../stores/calibrationStore';
@@ -56,6 +57,7 @@ export function CalibrationWizard() {
   const switchUser = useCalibrationStore((s) => s.switchUser);
   const resetCalibration = useCalibrationStore((s) => s.resetCalibration);
 
+  const navigate = useNavigate();
   const prevPhaseRef = useRef(phase);
 
   // Activate mock data for calibration
@@ -251,8 +253,14 @@ export function CalibrationWizard() {
                 <button onClick={handleRestart} style={styles.secondaryBtn}>
                   Recalibrate
                 </button>
-                <button onClick={handleSwitchUser} style={styles.primaryBtn}>
+                <button onClick={handleSwitchUser} style={styles.secondaryBtn}>
                   Switch User
+                </button>
+                <button
+                  onClick={() => navigate('/exercise/target-reach')}
+                  style={styles.primaryBtn}
+                >
+                  Start Target Reach →
                 </button>
               </div>
             </div>

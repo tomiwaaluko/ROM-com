@@ -5,6 +5,7 @@ import { useCalibrationStore } from './stores/calibrationStore';
 import { useExerciseStore } from './stores/exerciseStore';
 import { useSessionStore } from './stores/sessionStore';
 import { CalibrationWizard } from './components/calibration/CalibrationWizard';
+import { TargetReach } from './exercises/TargetReach';
 
 function Dashboard() {
   const { status, isMockMode } = useWebSocket();
@@ -30,18 +31,24 @@ function Dashboard() {
         <li>Streak: {streak}</li>
       </ul>
       <hr />
-      <Link to="/calibration" style={{ fontSize: 18 }}>→ Launch Calibration Wizard</Link>
+      <div style={{ display: 'flex', gap: 16, flexDirection: 'column' }}>
+        <Link to="/calibration" style={{ fontSize: 18 }}>→ Launch Calibration Wizard</Link>
+        <Link to="/exercise/target-reach" style={{ fontSize: 18 }}>→ Target Reach Exercise</Link>
+      </div>
     </div>
   );
 }
 
 function CalibrationPage() {
   const { status } = useWebSocket();
-  // Only render wizard once WebSocket (or mock) is connected
   if (status !== 'connected') {
     return <div style={{ color: '#fff', padding: 24 }}>Connecting...</div>;
   }
   return <CalibrationWizard />;
+}
+
+function TargetReachPage() {
+  return <TargetReach />;
 }
 
 function App() {
@@ -50,6 +57,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/calibration" element={<CalibrationPage />} />
+        <Route path="/exercise/target-reach" element={<TargetReachPage />} />
       </Routes>
     </BrowserRouter>
   );
