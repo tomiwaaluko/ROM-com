@@ -20,6 +20,7 @@ const TOLERANCE_PX = 40;
 const SPAWN_DELAY = 1.5; // seconds between paths
 const CANVAS_W = 800; // virtual canvas width for path generation
 const CANVAS_H = 600; // virtual canvas height
+const ThreeLine = 'line' as any;
 
 // ── Convert pixel coords to NDC for 3D rendering ────────────────────────────
 
@@ -122,15 +123,15 @@ function PathLine({ path, elapsed, handScreenPos, onAccuracyUpdate }: PathLinePr
   return (
     <group position={[0, 0, -0.1]}>
       {/* Full path — dim untraced */}
-      <line ref={untracedRef} geometry={fullGeometry}>
+      <ThreeLine ref={untracedRef} geometry={fullGeometry}>
         <lineBasicMaterial color="#1e2d42" linewidth={2} />
-      </line>
+      </ThreeLine>
 
       {/* Traced portion — cyan glow */}
-      <line ref={tracedRef}>
+      <ThreeLine ref={tracedRef}>
         <bufferGeometry />
         <lineBasicMaterial color="#00d4ff" linewidth={3} transparent opacity={0.9} />
-      </line>
+      </ThreeLine>
 
       {/* Missed points — red flash */}
       <points ref={missedRef}>
