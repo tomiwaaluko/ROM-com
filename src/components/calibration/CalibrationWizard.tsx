@@ -260,7 +260,13 @@ export function CalibrationWizard() {
                   onClick={() => navigate('/exercise/target-reach')}
                   style={styles.primaryBtn}
                 >
-                  Start Target Reach →
+                  Target Reach →
+                </button>
+                <button
+                  onClick={() => navigate('/exercise/trajectory-trace')}
+                  style={styles.primaryBtn}
+                >
+                  Trajectory Trace →
                 </button>
               </div>
             </div>

@@ -6,6 +6,7 @@ import { useExerciseStore } from './stores/exerciseStore';
 import { useSessionStore } from './stores/sessionStore';
 import { CalibrationWizard } from './components/calibration/CalibrationWizard';
 import { TargetReach } from './exercises/TargetReach';
+import { TrajectoryTrace } from './exercises/TrajectoryTrace';
 
 function Dashboard() {
   const { status, isMockMode } = useWebSocket();
@@ -34,6 +35,7 @@ function Dashboard() {
       <div style={{ display: 'flex', gap: 16, flexDirection: 'column' }}>
         <Link to="/calibration" style={{ fontSize: 18 }}>→ Launch Calibration Wizard</Link>
         <Link to="/exercise/target-reach" style={{ fontSize: 18 }}>→ Target Reach Exercise</Link>
+        <Link to="/exercise/trajectory-trace" style={{ fontSize: 18 }}>→ Trajectory Trace Exercise</Link>
       </div>
     </div>
   );
@@ -51,6 +53,10 @@ function TargetReachPage() {
   return <TargetReach />;
 }
 
+function TrajectoryTracePage() {
+  return <TrajectoryTrace />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -58,6 +64,7 @@ function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/calibration" element={<CalibrationPage />} />
         <Route path="/exercise/target-reach" element={<TargetReachPage />} />
+        <Route path="/exercise/trajectory-trace" element={<TrajectoryTracePage />} />
       </Routes>
     </BrowserRouter>
   );
