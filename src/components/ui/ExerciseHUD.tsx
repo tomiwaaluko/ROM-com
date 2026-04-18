@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useExerciseStore } from '../../stores/exerciseStore';
 import { useCalibrationStore } from '../../stores/calibrationStore';
 import { useSessionStore } from '../../stores/sessionStore';
@@ -8,6 +9,7 @@ interface ExerciseHUDProps {
 }
 
 export function ExerciseHUD({ exerciseName }: ExerciseHUDProps) {
+  const navigate = useNavigate();
   const score = useExerciseStore((s) => s.score);
   const streak = useSessionStore((s) => s.streak);
   const isRecognized = useCalibrationStore((s) => s.isRecognized);
@@ -41,6 +43,16 @@ export function ExerciseHUD({ exerciseName }: ExerciseHUDProps) {
         {multiplier > 1 && (
           <div style={styles.multiplier}>x{multiplier}</div>
         )}
+      </div>
+
+      {/* Dashboard button — bottom right */}
+      <div style={styles.bottomRight}>
+        <button
+          style={styles.dashBtn}
+          onClick={() => navigate('/dashboard')}
+        >
+          Dashboard
+        </button>
       </div>
 
       {/* Recognition indicator — bottom center */}
@@ -117,6 +129,22 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#ffcc00',
     marginTop: 4,
     textShadow: '0 0 8px rgba(255,204,0,0.5)',
+  },
+  bottomRight: {
+    position: 'absolute',
+    bottom: 28,
+    right: 28,
+    pointerEvents: 'auto',
+  },
+  dashBtn: {
+    background: 'rgba(30,45,66,0.8)',
+    border: '1px solid rgba(0,212,255,0.3)',
+    color: '#fff',
+    padding: '6px 14px',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontFamily: 'ui-monospace, Consolas, monospace',
   },
   bottomCenter: {
     position: 'absolute',
