@@ -33,7 +33,7 @@ async def pull_session_data() -> list[dict]:
     Reads MONGO_URI from environment. Returns an empty list (no crash) if
     MongoDB is unavailable — caller logs and skips the run.
     """
-    mongo_uri = _require_env("MONGO_URI")
+    mongo_uri = _require_env("MONGODB_URI")
     try:
         import motor.motor_asyncio as motor  # type: ignore
 

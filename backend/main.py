@@ -1,18 +1,62 @@
+import asyncio
 import time
 import logging
+import os
+from contextlib import asynccontextmanager
+from datetime import date, timedelta
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from dotenv import load_dotenv
 from schemas import GestureMessage
 from connection_manager import manager
 
 from kineticlab.photon.router import router as photon_router
 
+load_dotenv()
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
 START_TIME = time.time()
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    mongo_uri = os.environ.get("MONGODB_URI", "")
+    if mongo_uri:
+        application.state.mongo = AsyncIOMotorClient(mongo_uri)
+        application.state.db = application.state.mongo["kineticlab"]
+        logger.info("MongoDB connected")
+    else:
+        application.state.mongo = None
+        application.state.db = None
+        logger.warning("MONGODB_URI not set — running without MongoDB")
+
+    # Start Photon daily outreach scheduler (disabled when MOCK_PHOTON=1)
+    scheduler_task = None
+    if os.environ.get("MOCK_PHOTON", "1") != "1":
+        from kineticlab.photon.scheduler import run_scheduler
+        scheduler_task = asyncio.create_task(run_scheduler())
+        logger.info("Photon scheduler started — daily outreach at 08:00")
+    else:
+        logger.info("MOCK_PHOTON=1 — Photon scheduler disabled")
+
+    yield
+
+    if scheduler_task:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Photon scheduler stopped")
+
+    if application.state.mongo:
+        application.state.mongo.close()
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -114,11 +158,6 @@ AUDIO_CACHE_DIR = Path("/app/kineticlab/audio/cache")
 
 @app.get("/audio/{cue_name}")
 async def get_audio_cue(cue_name: str):
-    """Serve a pre-generated ElevenLabs MP3 from the audio cache.
-
-    Frontend plays via: <audio src="http://localhost:8000/audio/cue_1.mp3" />
-    Zero live TTS calls at runtime — all MP3s pre-generated offline.
-    """
     if cue_name.startswith("cue_") and "." not in cue_name:
         cue_name = f"{cue_name}.mp3"
 
@@ -134,7 +173,6 @@ async def get_audio_cue(cue_name: str):
 
 @app.get("/audio")
 async def list_audio_cues():
-    """List available audio cues with transcripts (for frontend discovery)."""
     manifest_path = AUDIO_CACHE_DIR / "manifest.json"
     if not manifest_path.exists():
         return {"cues": {}, "note": "Run generate_audio.py to populate"}
@@ -234,3 +272,85 @@ async def avatar_transcribe(file: UploadFile = File(...)):
     text = (payload.get("text") or "").strip()
     logger.info("Transcribed %d bytes → %d chars", len(audio_bytes), len(text))
     return {"text": text}
+# ----- Session endpoints -----
+
+@app.get("/session/{user_id}/latest")
+async def get_latest_session(user_id: str):
+    db = app.state.db
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    patient = await db["patients"].find_one({"patient_id": user_id})
+    if not patient:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+    sessions = patient.get("sessions", [])
+    if not sessions:
+        raise HTTPException(status_code=404, detail=f"No sessions found for {user_id}")
+    latest = max(sessions, key=lambda s: s["timestamp"])
+    return {
+        "session_id": latest["session_id"],
+        "user_id": user_id,
+        "timestamp": latest["timestamp"],
+        "exercises_completed": latest["exercises_completed"],
+        "fma_score": latest["fma_score"],
+        "streak": patient.get("streak", 0),
+        "last_session_date": patient.get("last_session_date", ""),
+    }
+
+
+@app.post("/session/{user_id}/complete")
+async def complete_session(user_id: str, payload: dict):
+    db = app.state.db
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    patient = await db["patients"].find_one({"patient_id": user_id})
+    if not patient:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+    today = date.today()
+    today_str = today.isoformat()
+    last_str = patient.get("last_session_date", "")
+    current_streak = patient.get("streak", 0)
+    try:
+        last_date = date.fromisoformat(last_str) if last_str else None
+    except ValueError:
+        last_date = None
+
+    if last_date is None:
+        new_streak = 1
+    elif last_date == today:
+        new_streak = current_streak
+    elif last_date == today - timedelta(days=1):
+        new_streak = current_streak + 1
+    else:
+        new_streak = 1
+
+    new_session = {
+        "session_id": payload.get("session_id", ""),
+        "timestamp": int(time.time()),
+        "exercises_completed": payload.get("exercises_completed", []),
+        "fma_score": payload.get("fma_score", {}),
+    }
+
+    await db["patients"].update_one(
+        {"patient_id": user_id},
+        {
+            "$push": {"sessions": new_session},
+            "$set": {"last_session_date": today_str, "streak": new_streak},
+        },
+    )
+    logger.info("Session completed for %s, new streak: %d", user_id, new_streak)
+    return {"status": "ok", "user_id": user_id, "streak": new_streak}
+
+
+# ----- Users endpoints -----
+
+@app.get("/users/active")
+async def get_active_users():
+    db = app.state.db
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    cursor = db["patients"].find({"active": True}, {"patient_id": 1, "phone": 1, "name": 1, "_id": 0})
+    users = []
+    async for doc in cursor:
+        users.append({"id": doc["patient_id"], "phone": doc["phone"], "name": doc["name"]})
+    return users
