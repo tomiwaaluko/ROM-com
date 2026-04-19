@@ -126,16 +126,18 @@ class PipelineRunner:
         Blocking main loop. Call from a thread or use run_async() from FastAPI.
         Press 'c' to start calibration, 'q' to quit, 'u' to switch user.
         """
-        cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
+        # Try both camera indices in case 0 is blocked
+        cap = cv2.VideoCapture(self.camera_index)
+        if not cap.isOpened():
+            alt = 1 if self.camera_index == 0 else 0
+            cap = cv2.VideoCapture(alt)
         if not cap.isOpened():
             raise RuntimeError(f"Cannot open camera {self.camera_index}")
-        print(f"[pipeline] Camera {self.camera_index} opened OK.")
 
         self._running = True
         frame_count = 0
         start = time.time()
 
-        cv2.namedWindow("KineticLab — Pipeline", cv2.WINDOW_NORMAL)
         print("[pipeline] Running. Keys: [c] calibrate  [u] switch user  [q] quit")
         if not self.calibrated:
             print("[pipeline] Not calibrated — press 'c' to start calibration")
@@ -404,7 +406,7 @@ if __name__ == "__main__":
     print("KineticLab Pipeline — standalone test")
     print("Press [c] to calibrate, [q] to quit\n")
 
-    runner = PipelineRunner(on_message=print_output, draw_landmarks=True, camera_index=1)
+    runner = PipelineRunner(on_message=print_output, draw_landmarks=True)
 
     # Try loading a saved profile first (demo contingency)
     runner.load_profile("default")
