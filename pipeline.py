@@ -235,6 +235,10 @@ class PipelineRunner:
                     print(f"[pipeline] FPS: {fps:.1f} | gesture: {output['gesture']} "
                           f"({output['confidence']:.0%}) | calibrated: {self.calibrated}")
 
+                # --- Poll backend for calibration trigger from website ---
+                if frame_count % 30 == 0:  # check ~once per second
+                    self._check_calibration_trigger()
+
                 # --- Key handling ---
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord("q"):
@@ -305,6 +309,21 @@ class PipelineRunner:
                 / total
             )
             self._session_stats["movement_speed_score"] = norm.get("wrist_velocity_r", 0.0)
+
+    def _check_calibration_trigger(self):
+        """Poll backend for a calibration trigger from the website."""
+        try:
+            resp = requests.get(
+                "http://localhost:8000/internal/calibrate/pending",
+                timeout=0.1,
+            )
+            data = resp.json()
+            if data.get("pending"):
+                user_id = data.get("user_id", "user")
+                print(f"[pipeline] Calibration triggered from website for '{user_id}'")
+                self.start_calibration(user_id)
+        except Exception:
+            pass  # backend not running — ignore
 
     def _post_to_backend(self, output: dict):
         """POST gesture data to Sakshi's FastAPI backend."""
