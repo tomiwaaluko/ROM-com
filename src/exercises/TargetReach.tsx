@@ -78,8 +78,8 @@ function TargetSphere({
     if (glowRef.current) glowRef.current.scale.setScalar(pulse * 1.8);
   });
 
-  const color = state === 'approach' ? '#ffffff' : '#00d4ff';
-  const glowColor = state === 'approach' ? '#ffffff' : '#00d4ff';
+  const color = state === 'approach' ? '#ffffff' : '#ff782f';
+  const glowColor = state === 'approach' ? '#ffffff' : '#ff782f';
 
   return (
     <group position={position}>
@@ -100,7 +100,7 @@ function TargetSphere({
           scale={0.5}
           size={3}
           speed={2}
-          color="#00ff88"
+          color="#F6A43C"
           opacity={0.8}
         />
       )}
@@ -126,7 +126,7 @@ function HandIndicator({ position }: { position: THREE.Vector3 }) {
   return (
     <mesh ref={meshRef}>
       <sphereGeometry args={[0.035, 12, 12]} />
-      <meshBasicMaterial color="#ff8844" transparent opacity={0.7} />
+      <meshBasicMaterial color="#F26B64" transparent opacity={0.7} />
     </mesh>
   );
 }
@@ -253,7 +253,7 @@ function SceneContent({ mockMode }: { mockMode: boolean }) {
         scale={4}
         size={1}
         speed={0.3}
-        color="#00d4ff"
+        color="#ff782f"
         opacity={0.15}
       />
     </>
@@ -288,7 +288,7 @@ export function TargetReach({ mockMode = false }: TargetReachProps) {
     return (
       <div
         style={{
-          background: '#0a0d14',
+          background: '#170f0d',
           color: '#fff',
           height: '100vh',
           display: 'flex',
@@ -303,12 +303,12 @@ export function TargetReach({ mockMode = false }: TargetReachProps) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0a0d14' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#170f0d' }}>
       <Canvas
         camera={{ position: [0, 0.5, 2.5], fov: 50 }}
         gl={{ antialias: true, alpha: false }}
         onCreated={({ gl }) => {
-          gl.setClearColor('#0a0d14');
+          gl.setClearColor('#170f0d');
         }}
       >
         <SceneContent mockMode={effectiveMock} />

@@ -1,12 +1,11 @@
 'use client';
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   motion,
   useMotionValue,
   useTransform,
   useSpring,
-  AnimatePresence,
   useInView,
   useScroll,
   useMotionTemplate,
@@ -18,6 +17,7 @@ import * as THREE from 'three';
 const SPRING_SNAPPY = { type: 'spring', stiffness: 260, damping: 22 } as const;
 const SPRING_SOFT   = { type: 'spring', stiffness: 100, damping: 20 } as const;
 const SPRING_LAZY   = { type: 'spring', stiffness: 60,  damping: 18 } as const;
+const ROM_COM_MARK = '/romcomimage%20(1).png';
 
 const fadeUp = {
   hidden:  { opacity: 0, y: 28 },
@@ -28,37 +28,6 @@ const stagger = (delay = 0.08) => ({
   visible: { transition: { staggerChildren: delay } },
 });
 
-/* ─── Magnetic button hook ───────────────────────────── */
-function useMagnetic(strength = 0.35) {
-  const ref = useRef<HTMLElement>(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const sx = useSpring(x, SPRING_SNAPPY);
-  const sy = useSpring(y, SPRING_SNAPPY);
-
-  const onMouseMove = useCallback((e: MouseEvent) => {
-    if (!ref.current) return;
-    const r = ref.current.getBoundingClientRect();
-    x.set((e.clientX - r.left - r.width  / 2) * strength);
-    y.set((e.clientY - r.top  - r.height / 2) * strength);
-  }, [x, y, strength]);
-
-  const onMouseLeave = useCallback(() => { x.set(0); y.set(0); }, [x, y]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.addEventListener('mousemove', onMouseMove as EventListener);
-    el.addEventListener('mouseleave', onMouseLeave);
-    return () => {
-      el.removeEventListener('mousemove', onMouseMove as EventListener);
-      el.removeEventListener('mouseleave', onMouseLeave);
-    };
-  }, [onMouseMove, onMouseLeave]);
-
-  return { ref, style: { x: sx, y: sy } };
-}
-
 /* ─── 3D Hero Canvas ─────────────────────────────────── */
 function ArmOrb() {
   const groupRef = useRef<THREE.Group>(null);
@@ -67,19 +36,18 @@ function ArmOrb() {
   const ring3Ref = useRef<THREE.Mesh>(null);
   const particlesRef = useRef<THREE.Points>(null);
 
-  const particlePositions = useRef<Float32Array | null>(null);
-  useEffect(() => {
+  const particlePositions = useMemo(() => {
     const count = 180;
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       const phi   = Math.acos(-1 + (2 * i) / count);
       const theta = Math.sqrt(count * Math.PI) * phi;
-      const r = 1.4 + Math.random() * 0.3;
+      const r = 1.4 + ((i * 17) % 31) / 100;
       pos[i * 3]     = r * Math.cos(theta) * Math.sin(phi);
       pos[i * 3 + 1] = r * Math.sin(theta) * Math.sin(phi);
       pos[i * 3 + 2] = r * Math.cos(phi);
     }
-    particlePositions.current = pos;
+    return pos;
   }, []);
 
   useFrame((state) => {
@@ -100,8 +68,8 @@ function ArmOrb() {
       <mesh>
         <sphereGeometry args={[0.55, 48, 48]} />
         <meshStandardMaterial
-          color="#00D4FF"
-          emissive="#00D4FF"
+          color="#FF782F"
+          emissive="#FF782F"
           emissiveIntensity={0.4}
           roughness={0.15}
           metalness={0.8}
@@ -114,8 +82,8 @@ function ArmOrb() {
       <mesh>
         <sphereGeometry args={[0.6, 32, 32]} />
         <meshStandardMaterial
-          color="#00D4FF"
-          emissive="#00D4FF"
+          color="#FF782F"
+          emissive="#FF782F"
           emissiveIntensity={0.15}
           transparent
           opacity={0.12}
@@ -126,29 +94,27 @@ function ArmOrb() {
       {/* Orbital rings */}
       <mesh ref={ring1Ref}>
         <torusGeometry args={[0.9, 0.012, 8, 80]} />
-        <meshStandardMaterial color="#00D4FF" emissive="#00D4FF" emissiveIntensity={0.8} />
+        <meshStandardMaterial color="#FF782F" emissive="#FF782F" emissiveIntensity={0.8} />
       </mesh>
       <mesh ref={ring2Ref} rotation={[Math.PI / 3, 0, 0]}>
         <torusGeometry args={[1.15, 0.008, 8, 80]} />
-        <meshStandardMaterial color="#10B981" emissive="#10B981" emissiveIntensity={0.7} transparent opacity={0.7} />
+        <meshStandardMaterial color="#D63368" emissive="#D63368" emissiveIntensity={0.7} transparent opacity={0.7} />
       </mesh>
       <mesh ref={ring3Ref} rotation={[Math.PI / 5, Math.PI / 4, 0]}>
         <torusGeometry args={[1.32, 0.005, 8, 80]} />
-        <meshStandardMaterial color="#00D4FF" emissive="#00D4FF" emissiveIntensity={0.4} transparent opacity={0.4} />
+        <meshStandardMaterial color="#FF782F" emissive="#FF782F" emissiveIntensity={0.4} transparent opacity={0.4} />
       </mesh>
 
       {/* Fibonacci particles */}
-      {particlePositions.current && (
-        <points ref={particlesRef}>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              args={[particlePositions.current, 3]}
-            />
-          </bufferGeometry>
-          <pointsMaterial size={0.018} color="#00D4FF" transparent opacity={0.55} sizeAttenuation />
-        </points>
-      )}
+      <points ref={particlesRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            args={[particlePositions, 3]}
+          />
+        </bufferGeometry>
+        <pointsMaterial size={0.018} color="#FF782F" transparent opacity={0.55} sizeAttenuation />
+      </points>
     </group>
   );
 }
@@ -161,8 +127,8 @@ function HeroCanvas() {
       gl={{ alpha: true, antialias: true }}
     >
       <ambientLight intensity={0.3} />
-      <pointLight position={[3, 3, 3]} intensity={2.5} color="#00D4FF" />
-      <pointLight position={[-3, -2, -2]} intensity={1.2} color="#10B981" />
+      <pointLight position={[3, 3, 3]} intensity={2.5} color="#FF782F" />
+      <pointLight position={[-3, -2, -2]} intensity={1.2} color="#D63368" />
       <ArmOrb />
     </Canvas>
   );
@@ -206,8 +172,8 @@ function FloatingNav() {
       }}
     >
       {/* Logo */}
-      <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', marginRight: 28, color: '#F9FAFB', whiteSpace: 'nowrap' }}>
-        Kinetic<span style={{ color: 'var(--accent)' }}>Lab</span>
+      <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', marginRight: 28, color: '#fff8f1', whiteSpace: 'nowrap' }}>
+        Rom<span style={{ color: 'var(--accent)' }}>-Com</span>
       </span>
 
       {/* Links */}
@@ -223,7 +189,7 @@ function FloatingNav() {
         style={{
           marginLeft: 8,
           background: 'var(--accent)',
-          color: '#09090B',
+          color: 'var(--text-ink)',
           fontWeight: 600,
           fontSize: 13,
           padding: '8px 18px',
@@ -268,7 +234,6 @@ function NavLink({ label }: { label: string }) {
 /* ─── Hero Section ───────────────────────────────────── */
 function HeroSection() {
   const navigate = useNavigate();
-  const btnMag = useMagnetic(0.28);
 
   return (
     <section
@@ -286,8 +251,26 @@ function HeroSection() {
       {/* Ambient background */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 60% 60% at 70% 50%, rgba(0,212,255,0.055) 0%, transparent 65%), radial-gradient(ellipse 40% 60% at 20% 80%, rgba(16,185,129,0.04) 0%, transparent 55%)',
+        background: 'radial-gradient(ellipse 60% 60% at 70% 50%, rgba(255,120,47,0.055) 0%, transparent 65%), radial-gradient(ellipse 40% 60% at 20% 80%, rgba(214,51,104,0.04) 0%, transparent 55%)',
       }} />
+
+      <motion.img
+        src={ROM_COM_MARK}
+        alt="Rom-Com logo"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...SPRING_SOFT, delay: 0.12 }}
+        style={{
+          position: 'absolute',
+          top: 'clamp(18px, 3vw, 34px)',
+          left: 'clamp(18px, 4vw, 56px)',
+          width: 'clamp(82px, 10vw, 136px)',
+          height: 'auto',
+          zIndex: 3,
+          filter: 'drop-shadow(0 14px 28px rgba(255, 120, 47, 0.18))',
+          pointerEvents: 'none',
+        }}
+      />
 
       {/* Left — editorial copy */}
       <motion.div
@@ -341,7 +324,7 @@ function HeroSection() {
         >
           Arm recovery,{' '}
           <span style={{
-            background: 'linear-gradient(90deg, var(--accent), #4DF0FF)',
+            background: 'linear-gradient(90deg, var(--accent), #F6A43C)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
@@ -356,7 +339,7 @@ function HeroSection() {
           color: 'var(--text-secondary)',
           maxWidth: '52ch',
         }}>
-          Real-time motion capture meets clinical assessment. KineticLab tracks
+          Real-time motion capture meets clinical assessment. Rom-Com tracks
           your upper-limb range of motion, scores it against the Fugl-Meyer scale,
           and delivers personalized coaching through a live avatar.
         </motion.p>
@@ -364,11 +347,9 @@ function HeroSection() {
         {/* CTAs */}
         <motion.div variants={fadeUp} style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <motion.button
-            ref={btnMag.ref as React.RefObject<HTMLButtonElement>}
             style={{
-              ...btnMag.style,
               background: 'var(--accent)',
-              color: '#09090B',
+              color: 'var(--text-ink)',
               fontWeight: 600,
               fontSize: 15,
               padding: '14px 28px',
@@ -376,7 +357,7 @@ function HeroSection() {
               letterSpacing: '-0.01em',
               cursor: 'pointer',
               border: 'none',
-              boxShadow: '0 0 28px rgba(0,212,255,0.22)',
+              boxShadow: '0 0 28px rgba(255,120,47,0.22)',
             }}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97, y: 1 }}
@@ -440,7 +421,7 @@ function HeroSection() {
           position: 'absolute',
           width: 480, height: 480,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0,212,255,0.07) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(255,120,47,0.07) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
         <HeroCanvas />
@@ -578,7 +559,7 @@ function BentoCard({
   const mouseY = useMotionValue(0);
   const spotlightX = useSpring(mouseX, SPRING_SNAPPY);
   const spotlightY = useSpring(mouseY, SPRING_SNAPPY);
-  const background = useMotionTemplate`radial-gradient(280px circle at ${spotlightX}px ${spotlightY}px, ${hovered ? 'rgba(0,212,255,0.07)' : 'rgba(0,212,255,0)'}, transparent 60%)`;
+  const background = useMotionTemplate`radial-gradient(280px circle at ${spotlightX}px ${spotlightY}px, ${hovered ? 'rgba(255,120,47,0.07)' : 'rgba(255,120,47,0)'}, transparent 60%)`;
 
   const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -631,7 +612,7 @@ function AvatarCard() {
 
   useEffect(() => {
     let charIdx = 0;
-    setText('');
+    const reset = window.setTimeout(() => setText(''), 0);
     const interval = setInterval(() => {
       charIdx++;
       setText(messages[msgIndex].slice(0, charIdx));
@@ -642,7 +623,10 @@ function AvatarCard() {
         }, 2800);
       }
     }, 28);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(reset);
+      clearInterval(interval);
+    };
   }, [msgIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -651,9 +635,9 @@ function AvatarCard() {
         {/* Avatar circle */}
         <div style={{
           width: 48, height: 48, borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--accent) 0%, #4DF0FF 100%)',
+          background: 'linear-gradient(135deg, var(--accent) 0%, #F6A43C 100%)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 20, fontWeight: 700, color: '#09090B', flexShrink: 0,
+          fontSize: 20, fontWeight: 700, color: 'var(--text-ink)', flexShrink: 0,
         }}>
           K
         </div>
@@ -722,7 +706,7 @@ function ROMCard() {
   const endAngle = startAngle + sweep;
   const maxAngle = startAngle + Math.PI * 1.5;
 
-  const arcPath = (a1: number, a2: number, color: string, stroke: number) => {
+  const arcPath = (a1: number, a2: number) => {
     const x1 = cx + r * Math.cos(a1);
     const y1 = cy + r * Math.sin(a1);
     const x2 = cx + r * Math.cos(a2);
@@ -737,9 +721,9 @@ function ROMCard() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <svg width={160} height={160} viewBox="0 0 160 160">
           {/* Track */}
-          <path d={arcPath(startAngle, maxAngle, 'none', 0)} fill="none" stroke="var(--border-strong)" strokeWidth={6} strokeLinecap="round" />
+          <path d={arcPath(startAngle, maxAngle)} fill="none" stroke="var(--border-strong)" strokeWidth={6} strokeLinecap="round" />
           {/* Active arc */}
-          <path d={arcPath(startAngle, endAngle, 'none', 0)} fill="none" stroke="var(--accent)" strokeWidth={6} strokeLinecap="round" />
+          <path d={arcPath(startAngle, endAngle)} fill="none" stroke="var(--accent)" strokeWidth={6} strokeLinecap="round" />
           {/* Value */}
           <text x={cx} y={cy - 4} textAnchor="middle" fill="var(--text-primary)" fontSize={26} fontFamily="var(--font-mono)" fontWeight={500}>
             {Math.round(angle)}°
@@ -753,7 +737,7 @@ function ROMCard() {
             { label: 'Abduction', val: '58°', pct: 0.58 },
             { label: 'Elbow',     val: '91°', pct: 0.75 },
             { label: 'Wrist',     val: '44°', pct: 0.44 },
-          ].map(({ label, val, pct }) => (
+          ].map(({ label, val, pct }, index) => (
             <div key={label}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{label}</span>
@@ -763,7 +747,7 @@ function ROMCard() {
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${pct * 100}%` }}
-                  transition={{ delay: 0.6 + Math.random() * 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  transition={{ delay: 0.6 + index * 0.12, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                   style={{ height: '100%', background: 'var(--accent)', borderRadius: 2 }}
                 />
               </div>
@@ -841,7 +825,7 @@ function DashboardCard() {
                 width: '100%',
                 height: `${(s / max) * 120}px`,
                 background: i === scores.length - 1
-                  ? 'linear-gradient(to top, var(--accent), rgba(0,212,255,0.3))'
+                  ? 'linear-gradient(to top, var(--accent), rgba(255,120,47,0.3))'
                   : 'var(--surface-3)',
                 borderRadius: '4px 4px 0 0',
                 border: i === scores.length - 1 ? '1px solid var(--accent-border)' : '1px solid var(--border)',
@@ -968,7 +952,7 @@ function CTASection() {
         style={{
           y: bgY,
           position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 70% 80% at 50% 50%, rgba(0,212,255,0.08) 0%, transparent 65%)',
+          background: 'radial-gradient(ellipse 70% 80% at 50% 50%, rgba(255,120,47,0.08) 0%, transparent 65%)',
         }}
       />
 
@@ -1010,7 +994,7 @@ function CTASection() {
           onClick={() => navigate('/setup')}
           style={{
             background: 'var(--accent)',
-            color: '#09090B',
+            color: 'var(--text-ink)',
             fontWeight: 700,
             fontSize: 16,
             padding: '16px 36px',
@@ -1018,10 +1002,10 @@ function CTASection() {
             cursor: 'pointer',
             border: 'none',
             letterSpacing: '-0.01em',
-            boxShadow: '0 0 40px rgba(0,212,255,0.25)',
+            boxShadow: '0 0 40px rgba(255,120,47,0.25)',
           }}
         >
-          Launch KineticLab
+          Launch Rom-Com
         </motion.button>
       </motion.div>
     </section>
@@ -1041,7 +1025,7 @@ function Footer() {
       gap: 16,
     }}>
       <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.02em', color: 'var(--text-secondary)' }}>
-        Kinetic<span style={{ color: 'var(--accent)' }}>Lab</span>
+        Rom<span style={{ color: 'var(--accent)' }}>-Com</span>
       </span>
 
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>

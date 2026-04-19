@@ -24,7 +24,7 @@ function StatusDot({ active }: { active: boolean }) {
             position: 'absolute',
             width: 10, height: 10,
             borderRadius: '50%',
-            background: '#10B981',
+            background: '#D63368',
             opacity: 0.4,
           }}
           animate={{ scale: [1, 2, 1], opacity: [0.4, 0, 0.4] }}
@@ -34,7 +34,7 @@ function StatusDot({ active }: { active: boolean }) {
       <span style={{
         width: 10, height: 10,
         borderRadius: '50%',
-        background: active ? '#10B981' : '#374151',
+        background: active ? '#D63368' : '#5a382d',
         display: 'inline-block',
         position: 'relative',
       }} />
@@ -79,9 +79,9 @@ function CameraPreview({ onStopRef }: { onStopRef: React.MutableRefObject<(() =>
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 12,
       }}>
-        <span style={{ color: '#9CA3AF', fontSize: 13, fontFamily: 'monospace', letterSpacing: '0.08em' }}>
+        <span style={{ color: '#e8cfc2', fontSize: 13, fontFamily: 'monospace', letterSpacing: '0.08em' }}>
           CAMERA PREVIEW
-          <span style={{ color: '#4B5563', fontSize: 11, marginLeft: 8 }}>
+          <span style={{ color: '#9d7564', fontSize: 11, marginLeft: 8 }}>
             (auto-released when pipeline starts)
           </span>
         </span>
@@ -91,9 +91,9 @@ function CameraPreview({ onStopRef }: { onStopRef: React.MutableRefObject<(() =>
             fontSize: 12,
             padding: '5px 14px',
             cursor: 'pointer',
-            background: active ? 'rgba(239,68,68,0.15)' : 'rgba(0,212,255,0.1)',
-            color: active ? '#EF4444' : '#00D4FF',
-            border: `1px solid ${active ? 'rgba(239,68,68,0.3)' : 'rgba(0,212,255,0.25)'}`,
+            background: active ? 'rgba(239,68,68,0.15)' : 'rgba(255,120,47,0.1)',
+            color: active ? '#EF4444' : '#FF782F',
+            border: `1px solid ${active ? 'rgba(239,68,68,0.3)' : 'rgba(255,120,47,0.25)'}`,
             borderRadius: 6,
             fontFamily: 'monospace',
             letterSpacing: '0.05em',
@@ -108,9 +108,9 @@ function CameraPreview({ onStopRef }: { onStopRef: React.MutableRefObject<(() =>
         position: 'relative',
         width: '100%',
         aspectRatio: '16/9',
-        background: '#0d1117',
+        background: '#1d120f',
         borderRadius: 12,
-        border: `1px solid ${active ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.06)'}`,
+        border: `1px solid ${active ? 'rgba(214,51,104,0.3)' : 'rgba(255,255,255,0.06)'}`,
         overflow: 'hidden',
         transition: 'border-color 0.3s',
       }}>
@@ -122,7 +122,7 @@ function CameraPreview({ onStopRef }: { onStopRef: React.MutableRefObject<(() =>
             gap: 8,
           }}>
             <span style={{ fontSize: 32, opacity: 0.2 }}>◎</span>
-            <span style={{ color: '#4B5563', fontSize: 13, fontFamily: 'monospace' }}>
+            <span style={{ color: '#9d7564', fontSize: 13, fontFamily: 'monospace' }}>
               camera off
             </span>
           </div>
@@ -151,7 +151,7 @@ function CameraPreview({ onStopRef }: { onStopRef: React.MutableRefObject<(() =>
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
             <StatusDot active={true} />
-            <span style={{ color: '#10B981', fontSize: 11, fontFamily: 'monospace' }}>LIVE</span>
+            <span style={{ color: '#D63368', fontSize: 11, fontFamily: 'monospace' }}>LIVE</span>
           </div>
         )}
       </div>
@@ -172,26 +172,26 @@ function StepCard({
         display: 'flex', alignItems: 'flex-start', gap: 14,
         padding: '14px 16px',
         borderRadius: 10,
-        background: done ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.03)',
-        border: `1px solid ${done ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)'}`,
+        background: done ? 'rgba(214,51,104,0.06)' : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${done ? 'rgba(214,51,104,0.2)' : 'rgba(255,255,255,0.06)'}`,
         transition: 'all 0.3s',
       }}
     >
       <div style={{
         width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: done ? '#10B981' : 'rgba(255,255,255,0.06)',
-        color: done ? '#000' : '#6B7280',
+        background: done ? '#D63368' : 'rgba(255,255,255,0.06)',
+        color: done ? '#000' : '#b98e7c',
         fontSize: 12, fontWeight: 700, fontFamily: 'monospace',
         transition: 'all 0.3s',
       }}>
         {done ? '✓' : index}
       </div>
       <div>
-        <div style={{ color: done ? '#10B981' : '#D1D5DB', fontSize: 14, fontWeight: 600, marginBottom: 2 }}>
+        <div style={{ color: done ? '#D63368' : '#fff1e7', fontSize: 14, fontWeight: 600, marginBottom: 2 }}>
           {label}
         </div>
-        <div style={{ color: '#6B7280', fontSize: 12, fontFamily: 'monospace' }}>{description}</div>
+        <div style={{ color: '#b98e7c', fontSize: 12, fontFamily: 'monospace' }}>{description}</div>
       </div>
     </motion.div>
   );
@@ -262,7 +262,7 @@ export function SetupPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0a0a0f',
+      background: '#170f0d',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -301,15 +301,15 @@ export function SetupPage() {
             display: 'inline-flex', alignItems: 'center', gap: 8,
             padding: '4px 12px',
             borderRadius: 20,
-            background: 'rgba(0,212,255,0.08)',
-            border: '1px solid rgba(0,212,255,0.2)',
+            background: 'rgba(255,120,47,0.08)',
+            border: '1px solid rgba(255,120,47,0.2)',
             marginBottom: 16,
           }}>
-            <span style={{ color: '#00D4FF', fontSize: 11, letterSpacing: '0.1em' }}>SETUP</span>
+            <span style={{ color: '#FF782F', fontSize: 11, letterSpacing: '0.1em' }}>SETUP</span>
           </div>
 
           <h1 style={{
-            color: '#F9FAFB',
+            color: '#fff8f1',
             fontSize: 'clamp(28px, 5vw, 40px)',
             fontWeight: 700,
             letterSpacing: '-0.02em',
@@ -319,7 +319,7 @@ export function SetupPage() {
             Start the pipeline
           </h1>
           <p style={{
-            color: '#6B7280',
+            color: '#b98e7c',
             fontSize: 14,
             marginTop: 10,
             lineHeight: 1.6,
@@ -354,10 +354,10 @@ export function SetupPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <StatusDot active={pipelineRunning} />
             <div>
-              <div style={{ color: pipelineRunning ? '#10B981' : '#9CA3AF', fontSize: 14, fontWeight: 600 }}>
+              <div style={{ color: pipelineRunning ? '#D63368' : '#e8cfc2', fontSize: 14, fontWeight: 600 }}>
                 {checking ? 'Checking…' : pipelineRunning ? 'Pipeline running' : 'Pipeline stopped'}
               </div>
-              <div style={{ color: '#4B5563', fontSize: 11, marginTop: 2 }}>
+              <div style={{ color: '#9d7564', fontSize: 11, marginTop: 2 }}>
                 {pipelineRunning
                   ? 'MediaPipe · gesture classifier · ROM normalizer'
                   : 'Click start to activate camera processing'}
@@ -376,9 +376,9 @@ export function SetupPage() {
               cursor: loading || !backendReachable ? 'not-allowed' : 'pointer',
               background: pipelineRunning
                 ? 'rgba(239,68,68,0.12)'
-                : 'rgba(0,212,255,0.12)',
-              color: pipelineRunning ? '#EF4444' : '#00D4FF',
-              border: `1px solid ${pipelineRunning ? 'rgba(239,68,68,0.3)' : 'rgba(0,212,255,0.3)'}`,
+                : 'rgba(255,120,47,0.12)',
+              color: pipelineRunning ? '#EF4444' : '#FF782F',
+              border: `1px solid ${pipelineRunning ? 'rgba(239,68,68,0.3)' : 'rgba(255,120,47,0.3)'}`,
               borderRadius: 8,
               fontFamily: 'monospace',
               letterSpacing: '0.05em',
@@ -411,9 +411,9 @@ export function SetupPage() {
               letterSpacing: '0.05em',
               cursor: allReady ? 'pointer' : 'not-allowed',
               background: allReady
-                ? 'linear-gradient(135deg, #00D4FF 0%, #10B981 100%)'
+                ? 'linear-gradient(135deg, #FF782F 0%, #D63368 100%)'
                 : 'rgba(255,255,255,0.05)',
-              color: allReady ? '#000' : '#4B5563',
+              color: allReady ? '#000' : '#9d7564',
               border: 'none',
               borderRadius: 10,
               transition: 'all 0.3s',
@@ -426,7 +426,7 @@ export function SetupPage() {
             {!allReady && (
               <motion.span
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                style={{ color: '#4B5563', fontSize: 12, fontFamily: 'monospace' }}
+                style={{ color: '#9d7564', fontSize: 12, fontFamily: 'monospace' }}
               >
                 {!backendReachable ? '⚠ Backend unreachable' : '⚠ Pipeline not running'}
               </motion.span>
@@ -440,7 +440,7 @@ export function SetupPage() {
             onClick={() => navigate('/')}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              color: '#4B5563', fontSize: 12, fontFamily: 'monospace',
+              color: '#9d7564', fontSize: 12, fontFamily: 'monospace',
               textDecoration: 'underline',
             }}
           >

@@ -80,8 +80,8 @@ function RotationScene({
       <ambientLight intensity={0.4} />
       <pointLight position={[2, 3, 3]} intensity={0.8} />
       <group rotation={[Math.PI / 2, 0, 0]}>
-        <RotationObject angleDeg={targetDeg} color="#1e2d42" />
-        <RotationObject angleDeg={currentDeg} color="#00d4ff" />
+        <RotationObject angleDeg={targetDeg} color="#3d251d" />
+        <RotationObject angleDeg={currentDeg} color="#ff782f" />
       </group>
     </>
   );
@@ -147,7 +147,7 @@ const styles: Record<string, React.CSSProperties> = {
   root: {
     position: 'fixed',
     inset: 0,
-    background: '#0a0d14',
+    background: '#170f0d',
   },
   target: {
     position: 'absolute',
@@ -169,15 +169,15 @@ const styles: Record<string, React.CSSProperties> = {
     transform: 'translateX(-50%)',
     borderRadius: 4,
     overflow: 'hidden',
-    background: '#1e2d42',
+    background: '#3d251d',
   },
   holdFill: {
     height: '100%',
-    background: '#00ff88',
+    background: '#F6A43C',
     transition: 'width 80ms linear',
   },
   connecting: {
-    background: '#0a0d14',
+    background: '#170f0d',
     color: '#fff',
     height: '100vh',
     display: 'flex',

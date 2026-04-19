@@ -38,7 +38,7 @@ export function ROMEnvelopeChart() {
       <div style={styles.title}>ROM Envelope</div>
       <ResponsiveContainer width="100%" height={220}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
-          <PolarGrid stroke="#1e2d42" />
+          <PolarGrid stroke="#3d251d" />
           <PolarAngleAxis
             dataKey="axis"
             tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
@@ -47,22 +47,22 @@ export function ROMEnvelopeChart() {
             angle={90}
             domain={[0, 180]}
             tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 9 }}
-            stroke="#1e2d42"
+            stroke="#3d251d"
           />
           {/* Full ROM — dim background */}
           <Radar
             name="Full ROM"
             dataKey="full"
-            stroke="#1e2d42"
-            fill="#1e2d42"
+            stroke="#3d251d"
+            fill="#3d251d"
             fillOpacity={0.5}
           />
-          {/* Patient ROM — cyan */}
+          {/* Patient ROM - orange */}
           <Radar
             name="Patient ROM"
             dataKey="patient"
-            stroke="#00d4ff"
-            fill="#00d4ff"
+            stroke="#ff782f"
+            fill="#ff782f"
             fillOpacity={0.4}
           />
         </RadarChart>
@@ -73,10 +73,10 @@ export function ROMEnvelopeChart() {
 
 const styles: Record<string, React.CSSProperties> = {
   card: {
-    background: '#111827',
+    background: '#241612',
     borderRadius: 12,
     padding: 20,
-    border: '1px solid #1e2d42',
+    border: '1px solid #3d251d',
   },
   title: {
     fontSize: 13,

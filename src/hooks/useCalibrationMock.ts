@@ -52,7 +52,7 @@ export function useCalibrationMock() {
               elbow: 0.45,
               wrist: 0.33,
             },
-            accentColor: '#00ccff',
+            accentColor: '#F26B64',
           },
         },
       });

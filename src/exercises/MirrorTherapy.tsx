@@ -35,7 +35,7 @@ function GhostPose({ position }: { position: THREE.Vector3 }) {
       <group scale={[-1, 1, 1]}>
         <SkeletonOverlay mockMode={false} />
       </group>
-      <MirrorHand position={position} color="#00ff88" />
+      <MirrorHand position={position} color="#F6A43C" />
     </group>
   );
 }
@@ -105,12 +105,12 @@ function MirrorScene({ mockMode }: { mockMode: boolean }) {
         <group scale={[-1, 1, 1]}>
           <SkeletonOverlay mockMode={mockMode} />
         </group>
-        <MirrorHand position={mirroredTarget} color="#00d4ff" />
+        <MirrorHand position={mirroredTarget} color="#ff782f" />
       </group>
 
       <group position={[1.1, 0, 0]}>
         <GhostPose position={mirroredTarget} />
-        <MirrorHand position={affectedHand} color={matchPct > 0.88 ? '#00ff88' : '#ff8844'} />
+        <MirrorHand position={affectedHand} color={matchPct > 0.88 ? '#F6A43C' : '#F26B64'} />
       </group>
     </>
   );
@@ -149,13 +149,13 @@ const styles: Record<string, React.CSSProperties> = {
   root: {
     position: 'fixed',
     inset: 0,
-    background: '#0a0d14',
+    background: '#170f0d',
   },
   split: {
     position: 'absolute',
     inset: '0 50% 0 auto',
     width: 1,
-    background: 'rgba(0,212,255,0.25)',
+    background: 'rgba(255,120,47,0.25)',
     zIndex: 2,
   },
   leftLabel: {
@@ -175,7 +175,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
   },
   connecting: {
-    background: '#0a0d14',
+    background: '#170f0d',
     color: '#fff',
     height: '100vh',
     display: 'flex',

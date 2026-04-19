@@ -55,7 +55,7 @@ interface CalibrationState {
   resetCalibration: () => void;
 }
 
-const ACCENT_COLORS = ['#00ff88', '#00ccff', '#ff6644', '#ffcc00', '#cc44ff'];
+const ACCENT_COLORS = ['#F6A43C', '#F26B64', '#ff6644', '#ffcc00', '#cc44ff'];
 
 function getAccentColor(index: number): string {
   return ACCENT_COLORS[index % ACCENT_COLORS.length];

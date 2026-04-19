@@ -177,7 +177,7 @@ function CalibrationWizardContent({ autoAdvance = false }: { autoAdvance?: boole
   }, [resetCalibration, setPhase]);
 
   const currentAccentColor =
-    userProfiles[currentUserId]?.accentColor ?? '#00ccff';
+    userProfiles[currentUserId]?.accentColor ?? '#F26B64';
 
   const isCapture = CAPTURE_PHASES.includes(phase);
   const completedCount = CAPTURE_PHASES.filter(
@@ -222,10 +222,10 @@ function CalibrationWizardContent({ autoAdvance = false }: { autoAdvance?: boole
             width: `${progress * 100}%`,
             backgroundColor:
               progress < 0.5
-                ? '#00ccff'
+                ? '#F26B64'
                 : progress < 1
                   ? '#44ddaa'
-                  : '#00ff88',
+                  : '#F6A43C',
           }}
           transition={{ duration: 0.3 }}
         />
@@ -274,7 +274,7 @@ function CalibrationWizardContent({ autoAdvance = false }: { autoAdvance?: boole
                           ...styles.phaseDot,
                           backgroundColor:
                             CAPTURE_PHASES.indexOf(phase) > i
-                              ? '#00ff88'
+                              ? '#F6A43C'
                               : CAPTURE_PHASES.indexOf(phase) === i
                                 ? currentAccentColor
                                 : 'rgba(255,255,255,0.2)',
@@ -305,7 +305,7 @@ function CalibrationWizardContent({ autoAdvance = false }: { autoAdvance?: boole
                 <ROMCard
                   label="Shoulder Flexion"
                   value={romProfile.maxFlexion}
-                  color="#00ccff"
+                  color="#F26B64"
                 />
                 <ROMCard
                   label="Shoulder Abduction"
@@ -368,29 +368,29 @@ function SkeletonPlaceholder() {
         style={{ opacity: 0.3 }}
       >
         {/* Head */}
-        <circle cx="60" cy="20" r="12" fill="#00ccff" />
+        <circle cx="60" cy="20" r="12" fill="#F26B64" />
         {/* Body */}
         <line
           x1="60" y1="32" x2="60" y2="90"
-          stroke="#00ccff" strokeWidth="2"
+          stroke="#F26B64" strokeWidth="2"
         />
         {/* Arms */}
         <line
           x1="60" y1="50" x2="30" y2="75"
-          stroke="#00ccff" strokeWidth="2"
+          stroke="#F26B64" strokeWidth="2"
         />
         <line
           x1="60" y1="50" x2="90" y2="75"
-          stroke="#00ccff" strokeWidth="2"
+          stroke="#F26B64" strokeWidth="2"
         />
         {/* Legs */}
         <line
           x1="60" y1="90" x2="40" y2="140"
-          stroke="#00ccff" strokeWidth="2"
+          stroke="#F26B64" strokeWidth="2"
         />
         <line
           x1="60" y1="90" x2="80" y2="140"
-          stroke="#00ccff" strokeWidth="2"
+          stroke="#F26B64" strokeWidth="2"
         />
       </svg>
       <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
@@ -432,7 +432,7 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     position: 'fixed',
     inset: 0,
-    background: '#0a0a0f',
+    background: '#170f0d',
     color: '#fff',
     fontFamily: 'ui-monospace, Consolas, monospace',
     display: 'flex',
@@ -559,7 +559,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(255,255,255,0.02)',
   },
   primaryBtn: {
-    background: 'linear-gradient(135deg, #00ccff, #00ff88)',
+    background: 'linear-gradient(135deg, #F26B64, #F6A43C)',
     border: 'none',
     color: '#000',
     padding: '12px 32px',

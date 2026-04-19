@@ -39,13 +39,13 @@ function TargetDot({ position, hit }: { position: THREE.Vector3; hit: boolean })
     <group position={position}>
       <mesh>
         <sphereGeometry args={[0.075, 18, 18]} />
-        <meshBasicMaterial color={hit ? '#00ff88' : '#00d4ff'} transparent opacity={0.9} />
+        <meshBasicMaterial color={hit ? '#F6A43C' : '#ff782f'} transparent opacity={0.9} />
       </mesh>
       <mesh>
         <sphereGeometry args={[0.14, 18, 18]} />
-        <meshBasicMaterial color={hit ? '#00ff88' : '#00d4ff'} transparent opacity={0.14} />
+        <meshBasicMaterial color={hit ? '#F6A43C' : '#ff782f'} transparent opacity={0.14} />
       </mesh>
-      {hit && <Sparkles count={20} scale={0.4} size={2.5} speed={1.5} color="#00ff88" opacity={0.7} />}
+      {hit && <Sparkles count={20} scale={0.4} size={2.5} speed={1.5} color="#F6A43C" opacity={0.7} />}
     </group>
   );
 }
@@ -129,8 +129,8 @@ function BimanualScene({
       <SkeletonOverlay mockMode={mockMode} />
       <TargetDot position={targets.left} hit={leftHit} />
       <TargetDot position={targets.right} hit={rightHit} />
-      <HandDot position={leftHandPosition} color="#00ff88" />
-      <HandDot position={rightHandPosition} color="#ff8844" />
+      <HandDot position={leftHandPosition} color="#F6A43C" />
+      <HandDot position={rightHandPosition} color="#F26B64" />
     </>
   );
 }
@@ -170,7 +170,7 @@ const styles: Record<string, React.CSSProperties> = {
   root: {
     position: 'fixed',
     inset: 0,
-    background: '#0a0d14',
+    background: '#170f0d',
   },
   windowWrap: {
     position: 'absolute',
@@ -181,11 +181,11 @@ const styles: Record<string, React.CSSProperties> = {
     transform: 'translateX(-50%)',
     borderRadius: 4,
     overflow: 'hidden',
-    background: '#1e2d42',
+    background: '#3d251d',
   },
   windowFill: {
     height: '100%',
-    background: '#00ff88',
+    background: '#F6A43C',
     transition: 'width 80ms linear',
   },
   windowLabel: {
@@ -198,7 +198,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
   },
   connecting: {
-    background: '#0a0d14',
+    background: '#170f0d',
     color: '#fff',
     height: '100vh',
     display: 'flex',
