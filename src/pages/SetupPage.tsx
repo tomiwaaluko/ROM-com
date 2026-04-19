@@ -43,11 +43,21 @@ function StatusDot({ active }: { active: boolean }) {
 }
 
 /* ─── Camera preview ──────────────────────────────────── */
-function CameraPreview() {
+function CameraPreview({ onStopRef }: { onStopRef: React.MutableRefObject<(() => void) | null> }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const stop = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setActive(false);
+  }, []);
+
+  // Expose stop to parent so pipeline start can release camera first
+  useEffect(() => { onStopRef.current = stop; }, [stop, onStopRef]);
 
   const start = useCallback(async () => {
     setError(null);
@@ -61,13 +71,6 @@ function CameraPreview() {
     }
   }, []);
 
-  const stop = useCallback(() => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
-    setActive(false);
-  }, []);
-
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
 
   return (
@@ -78,6 +81,9 @@ function CameraPreview() {
       }}>
         <span style={{ color: '#9CA3AF', fontSize: 13, fontFamily: 'monospace', letterSpacing: '0.08em' }}>
           CAMERA PREVIEW
+          <span style={{ color: '#4B5563', fontSize: 11, marginLeft: 8 }}>
+            (auto-released when pipeline starts)
+          </span>
         </span>
         <button
           onClick={active ? stop : start}
@@ -198,6 +204,7 @@ export function SetupPage() {
   const [loading, setLoading] = useState(false);
   const [backendReachable, setBackendReachable] = useState(false);
   const [checking, setChecking] = useState(true);
+  const stopCameraRef = useRef<(() => void) | null>(null);
 
   // Poll pipeline + backend status
   useEffect(() => {
@@ -225,6 +232,8 @@ export function SetupPage() {
     setLoading(true);
     try {
       const endpoint = pipelineRunning ? '/pipeline/stop' : '/pipeline/start';
+      // Release browser camera before starting pipeline — both can't hold it at once
+      if (!pipelineRunning) stopCameraRef.current?.();
       const res = await fetch(`${BACKEND}${endpoint}`, { method: 'POST' });
       const data = await res.json();
       setPipelineRunning(data.status === 'started' || data.status === 'already_running');
@@ -383,7 +392,7 @@ export function SetupPage() {
         </motion.div>
 
         {/* Camera preview */}
-        <CameraPreview />
+        <CameraPreview onStopRef={stopCameraRef} />
 
         {/* CTA */}
         <motion.div variants={fadeUp} style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>

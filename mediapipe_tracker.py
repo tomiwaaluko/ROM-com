@@ -89,9 +89,9 @@ def download_models():
         if not os.path.exists(path):
             print(f"Downloading {name} model (~7MB)...")
             urllib.request.urlretrieve(url, path)
-            print(f"  ✓ Saved to {path}")
+            print(f"  [ok] Saved to {path}")
         else:
-            print(f"  ✓ {name} model already present")
+            print(f"  [ok] {name} model already present")
 
 
 class LandmarkTracker:
