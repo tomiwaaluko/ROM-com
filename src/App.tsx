@@ -13,6 +13,7 @@ import { ForearmRotation } from './exercises/ForearmRotation';
 import { BimanualReach } from './exercises/BimanualReach';
 import { TherapistDashboard } from './components/dashboard/TherapistDashboard';
 import { ProgressionToast } from './components/ui/ProgressionToast';
+import { LiveAvatarView } from './components/avatar/LiveAvatarView';
 
 const BACKEND = 'http://localhost:8000';
 
@@ -161,6 +162,7 @@ function Dashboard() {
         <Link to="/exercise/mirror-therapy" style={{ fontSize: 18 }}>Mirror Therapy Exercise</Link>
         <Link to="/exercise/forearm-rotation" style={{ fontSize: 18 }}>Forearm Rotation Exercise</Link>
         <Link to="/exercise/bimanual-reach" style={{ fontSize: 18 }}>Bimanual Reach Exercise</Link>
+        <Link to="/avatar" style={{ fontSize: 18 }}>→ Live Avatar (Kai)</Link>
         <Link to="/dashboard" style={{ fontSize: 18 }}>→ Therapist Dashboard</Link>
       </div>
     </div>
@@ -211,6 +213,7 @@ function App() {
         <Route path="/exercise/mirror-therapy" element={<MirrorTherapyPage />} />
         <Route path="/exercise/forearm-rotation" element={<ForearmRotationPage />} />
         <Route path="/exercise/bimanual-reach" element={<BimanualReachPage />} />
+        <Route path="/avatar" element={<LiveAvatarView />} />
         <Route path="/dashboard" element={<DashboardPage />} />
       </Routes>
     </BrowserRouter>

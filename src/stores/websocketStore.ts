@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useCalibrationStore } from './calibrationStore';
 import { useSessionStore } from './sessionStore';
 import { useExerciseStore } from './exerciseStore';
+import { useAvatarStore } from './avatarStore';
 
 // ── Message types from backend ──────────────────────────────────────────────
 export interface WSMessage {
@@ -246,6 +247,20 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
         break;
       }
 
+      case 'avatar_response': {
+        const text = payload.text as string;
+        const stage = payload.stage as string | undefined;
+        if (text) {
+          useAvatarStore.getState().setAvatarText(text, stage);
+        }
+        break;
+      }
+      case 'avatar_narrate_error':
+        console.warn('[WS] avatar_narrate_error:', payload);
+        useAvatarStore.getState().setError(
+          (payload.message as string) || 'Narration error'
+        );
+        break;
       default:
         console.debug('[WS] Unhandled message type:', type);
     }

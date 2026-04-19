@@ -111,6 +111,30 @@ async def websocket_endpoint(websocket: WebSocket):
             msg_type = data.get("type")
             if msg_type == "ping":
                 await websocket.send_json({"type": "pong", "payload": {}, "timestamp": time.time()})
+            elif msg_type == "avatar_narrate":
+                # Scripted narration stage: look up text for the stage name,
+                # send back as avatar_response so frontend pushes through LiveKit data channel.
+                payload_in = data.get("payload") or {}
+                stage = payload_in.get("stage", "")
+                kwargs = {}
+                if "section_name" in payload_in:
+                    kwargs["section_name"] = payload_in["section_name"]
+                try:
+                    from kineticlab.narration import get_script
+                    text = get_script(stage, **kwargs)
+                except KeyError as exc:
+                    await websocket.send_json({
+                        "type": "avatar_narrate_error",
+                        "payload": {"code": "UNKNOWN_STAGE", "message": str(exc)},
+                        "timestamp": time.time(),
+                    })
+                    continue
+                await websocket.send_json({
+                    "type": "avatar_response",
+                    "payload": {"text": text, "stage": stage},
+                    "timestamp": time.time(),
+                })
+                logger.info("Narration sent: stage=%s (len=%d)", stage, len(text))
             elif msg_type == "patient_speech":
                 # Glue: patient_speech → Gemini clinical_response → avatar_response
                 patient_text = (data.get("payload") or {}).get("text", "").strip()
@@ -148,7 +172,7 @@ async def receive_gesture(gesture: GestureMessage):
     g = gesture.model_dump()
     ts = time.time()
     await manager.broadcast({"type": "gesture", "payload": g, "timestamp": ts})
-    await manager.broadcast({"type": "calibration:angle", "payload": {"angle": round(g["normalized_rom"] * 180, 1)}, "timestamp": ts})
+    await manager.broadcast({"type": "calibration:angle", "payload": {"angle": g["normalized_rom"]}, "timestamp": ts})
     recognized = g["name"] != "unknown" and g["confidence"] > 0.5
     await manager.broadcast({"type": "calibration:recognized", "payload": {"recognized": recognized}, "timestamp": ts})
     if g.get("fma_total") is not None:
@@ -422,3 +446,55 @@ async def pipeline_status():
     if _pipeline_process is None or _pipeline_process.poll() is not None:
         return {"running": False}
     return {"running": True, "pid": _pipeline_process.pid}
+
+
+
+# ----- TTS bridge: text → ElevenLabs PCM 24kHz → base64 for LiveAvatar -----
+import base64 as _base64
+import httpx as _httpx
+
+
+@app.post("/avatar/synthesize")
+async def avatar_synthesize(payload: dict):
+    """Synthesize text to PCM audio for LiveAvatar's agent.speak WebSocket event.
+
+    Body: {"text": "..."}
+    Returns: {"audio_b64": "<base64 PCM 24kHz 16-bit mono>", "text": "..."}
+
+    LiveAvatar LITE mode avatars don't do their own TTS — you stream PCM audio
+    over the ws_url WebSocket via `agent.speak` commands. This endpoint is that bridge.
+    """
+    text = (payload or {}).get("text", "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Missing text in body")
+
+    api_key = os.environ.get("ELEVEN_API_KEY") or os.environ.get("ELEVENLABS_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ElevenLabs API key not configured")
+
+    voice_id = os.environ.get("ELEVENLABS_VOICE_ID") or "WyFXw4PzMbRnp8iLMJwY"
+
+    # Use pcm_24000 output format — matches LiveAvatar's requirement
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=pcm_24000"
+
+    async with _httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            resp = await client.post(
+                url,
+                headers={"xi-api-key": api_key, "Content-Type": "application/json"},
+                json={
+                    "text": text,
+                    "model_id": "eleven_turbo_v2",
+                    "voice_settings": {"stability": 0.75, "similarity_boost": 0.85, "style": 0.2},
+                },
+            )
+            resp.raise_for_status()
+            pcm_bytes = resp.content
+        except _httpx.HTTPError as exc:
+            logger.error("ElevenLabs synth failed: %s", exc)
+            raise HTTPException(status_code=502, detail=f"ElevenLabs upstream error: {exc}")
+
+    audio_b64 = _base64.b64encode(pcm_bytes).decode("ascii")
+    logger.info("Synthesized %d chars → %d PCM bytes", len(text), len(pcm_bytes))
+    return {"audio_b64": audio_b64, "text": text, "byte_count": len(pcm_bytes)}
+

@@ -7,6 +7,7 @@ import { useWebSocketStore } from '../../stores/websocketStore';
 import { RecognitionIndicator } from './RecognitionIndicator';
 import { ROMProgressArc } from './ROMProgressArc';
 import { useCalibrationMock } from '../../hooks/useCalibrationMock';
+import { AvatarBubble } from '../avatar/AvatarBubble';
 
 const PHASE_LABELS: Record<CalibrationPhase, string> = {
   idle: '',
@@ -89,6 +90,53 @@ function CalibrationWizardContent({ autoAdvance = false }: { autoAdvance?: boole
     }
   }, [phase]);
 
+  // Kai narration dispatch — fires on each phase transition.
+  const wsSend = useWebSocketStore((s) => s.send);
+  const narrationFiredRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (narrationFiredRef.current === phase) return;
+    narrationFiredRef.current = phase;
+
+    const sessionId = `calib_${Date.now()}`;
+    const sectionNames: Record<string, string> = {
+      shoulder_flex: 'shoulder flexion',
+      shoulder_abd: 'shoulder abduction',
+      elbow: 'elbow flexion',
+      wrist: 'wrist extension',
+    };
+
+    if (phase === 'intro') {
+      wsSend({
+        type: 'avatar_narrate',
+        payload: { stage: 'welcome', session_id: sessionId },
+      });
+      const t = setTimeout(() => {
+        wsSend({
+          type: 'avatar_narrate',
+          payload: { stage: 'calibration_intro', session_id: sessionId },
+        });
+      }, 5500);
+      return () => clearTimeout(t);
+    }
+    if (sectionNames[phase]) {
+      wsSend({
+        type: 'avatar_narrate',
+        payload: {
+          stage: 'calibration_section_start',
+          section_name: sectionNames[phase],
+          session_id: sessionId,
+        },
+      });
+      return;
+    }
+    if (phase === 'complete') {
+      wsSend({
+        type: 'avatar_narrate',
+        payload: { stage: 'calibration_complete', session_id: sessionId },
+      });
+    }
+  }, [phase, wsSend]);
+
   // Start calibration if idle
   useEffect(() => {
     if (phase === 'idle') {
@@ -139,6 +187,7 @@ function CalibrationWizardContent({ autoAdvance = false }: { autoAdvance?: boole
 
   return (
     <div style={styles.container}>
+      <AvatarBubble position="top-right" width={280} height={160} />
       {/* Dark grid background */}
       <div style={styles.gridBg} />
 
