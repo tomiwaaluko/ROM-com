@@ -3,3 +3,8 @@ __pycache__/
 models/
 node_modules/
 dist/
+
+# Environment files
+.env
+.env.*
+*.env
