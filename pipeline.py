@@ -126,16 +126,18 @@ class PipelineRunner:
         Blocking main loop. Call from a thread or use run_async() from FastAPI.
         Press 'c' to start calibration, 'q' to quit, 'u' to switch user.
         """
-        cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
+        # Try both camera indices in case 0 is blocked
+        cap = cv2.VideoCapture(self.camera_index)
+        if not cap.isOpened():
+            alt = 1 if self.camera_index == 0 else 0
+            cap = cv2.VideoCapture(alt)
         if not cap.isOpened():
             raise RuntimeError(f"Cannot open camera {self.camera_index}")
-        print(f"[pipeline] Camera {self.camera_index} opened OK.")
 
         self._running = True
         frame_count = 0
         start = time.time()
 
-        cv2.namedWindow("KineticLab — Pipeline", cv2.WINDOW_NORMAL)
         print("[pipeline] Running. Keys: [c] calibrate  [u] switch user  [q] quit")
         if not self.calibrated:
             print("[pipeline] Not calibrated — press 'c' to start calibration")
@@ -169,6 +171,14 @@ class PipelineRunner:
                 }
 
                 if features is not None:
+                    output["raw_features"] = features
+
+                    # --- Classify FIRST on raw features before anything can modify them ---
+                    # Model was trained on raw joint angles (degrees) — never use normalized here
+                    pred = self.classifier.predict(features)
+                    output["gesture"] = pred["gesture"]
+                    output["confidence"] = pred["confidence"]
+
                     # --- Calibration update ---
                     if self.calibrator.is_running:
                         progress = self.calibrator.update(features)
@@ -176,26 +186,14 @@ class PipelineRunner:
                         if progress >= 1.0:
                             self._finish_calibration()
 
-                    # --- ROM normalization ---
+                    # --- ROM normalization (for FMA scoring only, not classification) ---
                     if self.normalizer is not None:
                         norm_result = self.normalizer.process(features)
                         output["normalized_features"] = norm_result["normalized"]
                         output["active_joints"] = norm_result["active"]
                         output["fatigue_detected"] = norm_result["fatigue_detected"]
-
-                        # Use normalized features for classification when calibrated
-                        norm_features = {
-                            k: norm_result["normalized"].get(k, v)
-                            for k, v in features.items()
-                        }
-                        pred = self.classifier.predict(norm_features)
-
-                        # --- Update session stats (running max for FMA scoring) ---
                         norm = norm_result["normalized"]
-                        gesture = pred["gesture"]
-                        self._update_session_stats(norm, gesture)
-
-                        # --- Recompute FMA score every 30 frames ---
+                        self._update_session_stats(norm, pred["gesture"])
                         self._fma_frame_counter += 1
                         if self._fma_frame_counter % 30 == 0:
                             import time as _time
@@ -205,20 +203,12 @@ class PipelineRunner:
                                 session_id=f"live_{self.current_user}",
                                 timestamp=_time.time(),
                             )
-                        # Inject latest FMA into output
                         if self._fma_result:
                             output["fma_total"]    = self._fma_result.total_score
                             output["fma_severity"] = self._fma_result.severity
                             output["fma_domain_a"] = self._fma_result.domain_a_score
                             output["fma_domain_c"] = self._fma_result.domain_c_score
                             output["fma_domain_e"] = self._fma_result.domain_e_score
-                    else:
-                        # Pre-calibration: classify on raw features
-                        pred = self.classifier.predict(features)
-
-                    output["gesture"] = pred["gesture"]
-                    output["confidence"] = pred["confidence"]
-
                 # --- Emit to WebSocket / callback ---
                 self.on_message(output)
                 self._post_to_backend(output)
@@ -404,7 +394,7 @@ if __name__ == "__main__":
     print("KineticLab Pipeline — standalone test")
     print("Press [c] to calibrate, [q] to quit\n")
 
-    runner = PipelineRunner(on_message=print_output, draw_landmarks=True, camera_index=1)
+    runner = PipelineRunner(on_message=print_output, draw_landmarks=True)
 
     # Try loading a saved profile first (demo contingency)
     runner.load_profile("default")
