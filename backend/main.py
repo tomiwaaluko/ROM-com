@@ -111,6 +111,30 @@ async def websocket_endpoint(websocket: WebSocket):
             msg_type = data.get("type")
             if msg_type == "ping":
                 await websocket.send_json({"type": "pong", "payload": {}, "timestamp": time.time()})
+            elif msg_type == "avatar_narrate":
+                # Scripted narration stage: look up text for the stage name,
+                # send back as avatar_response so frontend pushes through LiveKit data channel.
+                payload_in = data.get("payload") or {}
+                stage = payload_in.get("stage", "")
+                kwargs = {}
+                if "section_name" in payload_in:
+                    kwargs["section_name"] = payload_in["section_name"]
+                try:
+                    from kineticlab.narration import get_script
+                    text = get_script(stage, **kwargs)
+                except KeyError as exc:
+                    await websocket.send_json({
+                        "type": "avatar_narrate_error",
+                        "payload": {"code": "UNKNOWN_STAGE", "message": str(exc)},
+                        "timestamp": time.time(),
+                    })
+                    continue
+                await websocket.send_json({
+                    "type": "avatar_response",
+                    "payload": {"text": text, "stage": stage},
+                    "timestamp": time.time(),
+                })
+                logger.info("Narration sent: stage=%s (len=%d)", stage, len(text))
             elif msg_type == "patient_speech":
                 # Glue: patient_speech → Gemini clinical_response → avatar_response
                 patient_text = (data.get("payload") or {}).get("text", "").strip()
