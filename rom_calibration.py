@@ -269,6 +269,148 @@ class ROMNormalizer:
         self._deactivate_thresh = DEACTIVATE_THRESHOLD
 
 
+PROFILES_DIR = Path("rom_profiles")
+
+
+class ProgressionManager:
+    """
+    Session-over-session ROM threshold progression engine.
+
+    Progression rules are grounded in adaptive difficulty research:
+    the 70% success rule (Vygotsky's zone of proximal development, operationalized
+    in motor rehabilitation by Duarte & Reinkensmeyer, 2007, and later formalized
+    in adaptive robot-assisted therapy by Marchal-Crespo & Reinkensmeyer, 2009).
+    The 80% advance / 50% regress thresholds follow the two-session confirmation
+    window used in Krakauer et al. (2019) motor learning guidelines to avoid
+    one-session noise driving inappropriate difficulty changes.
+
+    Persistence: state is saved to rom_profiles/{user_id}_progression.json so
+    thresholds survive app restarts.
+    """
+
+    _ADVANCE_THRESHOLD = 0.80     # success rate needed to advance
+    _ADVANCE_CONSECUTIVE = 2      # consecutive sessions required
+    _REGRESS_THRESHOLD = 0.50     # success rate below which we regress
+    _STEP = 0.05                  # fractional step size (5% of ROM range)
+    _ACTIVATE_MAX = 0.90
+    _ACTIVATE_MIN = 0.50
+    _DEACTIVATE_MAX = 0.75
+    _DEACTIVATE_MIN = 0.30
+    _HISTORY_LEN = 5
+
+    def __init__(self, normalizer: ROMNormalizer, user_id: str = "default"):
+        self._normalizer = normalizer
+        self._user_id = user_id
+        self._hits = 0
+        self._attempts = 0
+        self._session_history: deque[float] = deque(maxlen=self._HISTORY_LEN)
+        self._load()
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def record_attempt(self, hit: bool) -> None:
+        """Log a single target attempt for the current session."""
+        self._attempts += 1
+        if hit:
+            self._hits += 1
+
+    def end_session(self) -> dict:
+        """
+        Finalize the session: compute success rate, apply progression rules,
+        persist state, and return a summary dict.
+        """
+        success_rate = self._hits / self._attempts if self._attempts > 0 else 0.0
+        self._session_history.append(success_rate)
+
+        activate = self._normalizer._activate_thresh
+        deactivate = self._normalizer._deactivate_thresh
+        action = "hold"
+
+        consecutive_advance = self._count_consecutive_advance()
+
+        if consecutive_advance >= self._ADVANCE_CONSECUTIVE:
+            step = self._STEP
+            activate = min(activate + step, self._ACTIVATE_MAX)
+            deactivate = min(deactivate + step, self._DEACTIVATE_MAX)
+            action = "advance"
+        elif success_rate < self._REGRESS_THRESHOLD:
+            step = self._STEP
+            activate = max(activate - step, self._ACTIVATE_MIN)
+            deactivate = max(deactivate - step, self._DEACTIVATE_MIN)
+            action = "regress"
+
+        self._normalizer._activate_thresh = activate
+        self._normalizer._deactivate_thresh = deactivate
+
+        self.reset()
+        self._save()
+
+        return {
+            "success_rate": success_rate,
+            "new_activate": activate,
+            "new_deactivate": deactivate,
+            "action": action,
+        }
+
+    def get_thresholds(self) -> tuple[float, float]:
+        """Return current (activate_threshold, deactivate_threshold)."""
+        return (
+            self._normalizer._activate_thresh,
+            self._normalizer._deactivate_thresh,
+        )
+
+    def reset(self) -> None:
+        """Clear per-session attempt counters (preserves history and thresholds)."""
+        self._hits = 0
+        self._attempts = 0
+
+    # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
+
+    def _progression_path(self) -> Path:
+        return PROFILES_DIR / f"{self._user_id}_progression.json"
+
+    def _save(self) -> None:
+        PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+        data = {
+            "user_id": self._user_id,
+            "activate_thresh": self._normalizer._activate_thresh,
+            "deactivate_thresh": self._normalizer._deactivate_thresh,
+            "session_history": list(self._session_history),
+        }
+        self._progression_path().write_text(json.dumps(data, indent=2))
+
+    def _load(self) -> None:
+        path = self._progression_path()
+        if not path.exists():
+            return
+        try:
+            data = json.loads(path.read_text())
+            self._normalizer._activate_thresh = float(data.get("activate_thresh", ACTIVATE_THRESHOLD))
+            self._normalizer._deactivate_thresh = float(data.get("deactivate_thresh", DEACTIVATE_THRESHOLD))
+            for rate in data.get("session_history", []):
+                self._session_history.append(float(rate))
+        except (json.JSONDecodeError, KeyError, ValueError):
+            pass  # corrupted file — start fresh
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _count_consecutive_advance(self) -> int:
+        """Count how many of the most recent sessions met the advance threshold."""
+        count = 0
+        for rate in reversed(self._session_history):
+            if rate >= self._ADVANCE_THRESHOLD:
+                count += 1
+            else:
+                break
+        return count
+
+
 def quick_calibration_test():
     """
     CLI smoke test for calibration flow.

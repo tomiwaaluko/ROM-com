@@ -20,6 +20,15 @@ interface LastGesture {
   confidence: number;
 }
 
+export interface ProgressionUpdate {
+  action: 'advance' | 'regress' | 'hold';
+  success_rate: number;
+  new_activate: number;
+  new_deactivate: number;
+  /** Monotonically-increasing stamp so useEffect fires on every update. */
+  timestamp: number;
+}
+
 interface WebSocketState {
   // Connection state
   socket: WebSocket | null;
@@ -29,6 +38,7 @@ interface WebSocketState {
   reconnectDelay: number;
   isMockMode: boolean;
   lastGesture: LastGesture | null;
+  lastProgressionUpdate: ProgressionUpdate | null;
 
   // Actions
   connect: () => void;
@@ -49,6 +59,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
   reconnectDelay: BASE_RECONNECT_DELAY,
   isMockMode: import.meta.env.VITE_MOCK_MODE === 'true',
   lastGesture: null,
+  lastProgressionUpdate: null,
 
   connect: () => {
     const state = get();
@@ -213,6 +224,28 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
       case 'exercise:normalized_angle':
         useExerciseStore.getState().updateNormalizedAngle(payload.normalized_angle as number);
         break;
+
+      case 'progression_update': {
+        const data = payload as {
+          action: 'advance' | 'regress' | 'hold';
+          success_rate: number;
+          new_activate: number;
+          new_deactivate: number;
+        };
+        console.log('[Progression] Session result:', {
+          action: data.action,
+          success_rate: `${(data.success_rate * 100).toFixed(1)}%`,
+          new_activate: data.new_activate,
+          new_deactivate: data.new_deactivate,
+        });
+        set({
+          lastProgressionUpdate: {
+            ...data,
+            timestamp: Date.now(),
+          },
+        });
+        break;
+      }
 
       case 'avatar_response': {
         const text = payload.text as string;
