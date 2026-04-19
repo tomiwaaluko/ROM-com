@@ -172,7 +172,7 @@ async def receive_gesture(gesture: GestureMessage):
     g = gesture.model_dump()
     ts = time.time()
     await manager.broadcast({"type": "gesture", "payload": g, "timestamp": ts})
-    await manager.broadcast({"type": "calibration:angle", "payload": {"angle": round(g["normalized_rom"] * 180, 1)}, "timestamp": ts})
+    await manager.broadcast({"type": "calibration:angle", "payload": {"angle": g["normalized_rom"]}, "timestamp": ts})
     recognized = g["name"] != "unknown" and g["confidence"] > 0.5
     await manager.broadcast({"type": "calibration:recognized", "payload": {"recognized": recognized}, "timestamp": ts})
     if g.get("fma_total") is not None:
