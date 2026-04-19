@@ -35,7 +35,7 @@ from typing import Optional, Callable
 
 from mediapipe_tracker import LandmarkTracker
 from feature_extractor import FeatureExtractor
-from rom_calibration import ROMCalibrator, ROMNormalizer, ROMProfile
+from rom_calibration import ROMCalibrator, ROMNormalizer, ROMProfile, ProgressionManager
 from gesture_classifier import GestureClassifier
 from fma_scoring import FMAScorer
 
@@ -70,6 +70,10 @@ class PipelineRunner:
         self.calibrated = False
         self.current_user = "user"
 
+        # Progression manager (created after calibration when normalizer exists)
+        self.progression_manager: Optional[ProgressionManager] = None
+        self._last_miss_record_time: float = 0.0
+
         # FMA scoring
         self.fma_scorer = FMAScorer()
         self._session_stats: dict = {}   # running max of normalized features per session
@@ -101,6 +105,7 @@ class PipelineRunner:
             profile = ROMProfile.load(str(path))
             if profile.is_valid():
                 self.normalizer = ROMNormalizer(profile)
+                self.progression_manager = ProgressionManager(self.normalizer, user_id=user_id)
                 self.calibrated = True
                 self.current_user = user_id
                 print(f"[pipeline] Loaded saved ROM profile for '{user_id}'")
@@ -112,6 +117,7 @@ class PipelineRunner:
         profile = self.calibrator.finish()
         if profile.is_valid():
             self.normalizer = ROMNormalizer(profile)
+            self.progression_manager = ProgressionManager(self.normalizer, user_id=self.current_user)
             self.calibrated = True
             # Save profile for demo contingency
             profile.save(str(PROFILE_DIR / f"{self.current_user}.json"))
@@ -138,7 +144,8 @@ class PipelineRunner:
         frame_count = 0
         start = time.time()
 
-        print("[pipeline] Running. Keys: [c] calibrate  [u] switch user  [q] quit")
+        cv2.namedWindow("KineticLab — Pipeline", cv2.WINDOW_NORMAL)
+        print("[pipeline] Running. Keys: [c] calibrate  [u] switch user  [e] end session  [q] quit")
         if not self.calibrated:
             print("[pipeline] Not calibrated — press 'c' to start calibration")
 
@@ -193,7 +200,19 @@ class PipelineRunner:
                         output["active_joints"] = norm_result["active"]
                         output["fatigue_detected"] = norm_result["fatigue_detected"]
                         norm = norm_result["normalized"]
-                        self._update_session_stats(norm, pred["gesture"])
+                        gesture = pred["gesture"]
+                        self._update_session_stats(norm, gesture)
+
+                        # --- Progression attempt recording ---
+                        if self.progression_manager is not None and gesture == "target_reach":
+                            target_hit = any(norm_result["active"].values())
+                            if target_hit:
+                                self.progression_manager.record_attempt(True)
+                            elif time.time() - self._last_miss_record_time >= 1.0:
+                                self.progression_manager.record_attempt(False)
+                                self._last_miss_record_time = time.time()
+
+                        # --- Recompute FMA score every 30 frames ---
                         self._fma_frame_counter += 1
                         if self._fma_frame_counter % 30 == 0:
                             import time as _time
@@ -240,6 +259,8 @@ class PipelineRunner:
                     new_user = f"user_{int(time.time()) % 1000}"
                     self.start_calibration(new_user)
                     print(f"[pipeline] Switched to new user '{new_user}' — recalibrating")
+                elif key == ord("e"):
+                    self.end_session()
 
         finally:
             self._running = False
@@ -247,6 +268,23 @@ class PipelineRunner:
             cap.release()
             if show_window:
                 cv2.destroyAllWindows()
+
+    def end_session(self):
+        """Finalize progression, log results, broadcast to frontend, reset session counters."""
+        if self.progression_manager is not None:
+            result = self.progression_manager.end_session()
+            print(
+                f"[pipeline] Session ended — "
+                f"success_rate={result['success_rate']:.1%}  "
+                f"action={result['action']}  "
+                f"activate={result['new_activate']:.2f}  "
+                f"deactivate={result['new_deactivate']:.2f}"
+            )
+            self.on_message({
+                "type": "progression_update",
+                "payload": result,
+            })
+        self._session_stats = {}
 
     def _update_session_stats(self, norm: dict, gesture: str):
         """Track running max of normalized features for FMA scoring."""
