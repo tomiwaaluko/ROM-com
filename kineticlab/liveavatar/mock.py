@@ -16,9 +16,10 @@ class MockLiveAvatarClient:
         logger.info("[MOCK] LiveAvatar session started (id=%s)", self.session_id)
         return self.session_id
 
-    async def speak(self, text: str) -> None:
-        """Log avatar speech to stdout."""
+    async def speak(self, text: str) -> bytes:
+        """Log avatar speech to stdout. Returns empty bytes (mock TTS)."""
         logger.info("[MOCK] Avatar says: %s", text)
+        return b""
 
     async def close(self) -> None:
         """Simulate session teardown."""

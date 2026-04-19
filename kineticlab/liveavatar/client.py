@@ -36,6 +36,7 @@ class LiveAvatarClient:
         self.ws_url: str | None = None
         self.max_duration_seconds: int | None = None
         self._client = httpx.AsyncClient(timeout=30.0)
+        self._tts = None
 
     async def create_session(self) -> dict[str, Any]:
         token_body: dict[str, Any] = {
@@ -72,6 +73,27 @@ class LiveAvatarClient:
             "ws_url": self.ws_url,
             "max_session_duration": self.max_duration_seconds,
         }
+
+    async def connect(self) -> None:
+        """Start a HeyGen session. Called by LiveAvatarSession at session begin."""
+        await self.create_session()
+
+    async def speak(self, text: str) -> bytes:
+        """Synthesize text via ElevenLabs TTS; returns MP3 bytes.
+
+        Lazily initialises a shared TTS client for the session lifetime.
+        """
+        from kineticlab.elevenlabs import get_tts_client
+        if self._tts is None:
+            self._tts = get_tts_client()
+        return await self._tts.synthesize(text)
+
+    async def close(self) -> None:
+        """Shut down TTS client and stop the HeyGen session."""
+        if self._tts is not None:
+            await self._tts.close()
+            self._tts = None
+        await self.stop()
 
     async def stop(self) -> None:
         if self.session_id and self.session_token:

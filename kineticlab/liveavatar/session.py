@@ -163,19 +163,24 @@ class LiveAvatarSession:
         logger.info("[Session] Pipeline ready — ASR and avatar connected.")
 
     async def _on_transcript(self, text: str) -> None:
-        """ASR callback: runs the full LLM → avatar → WebSocket haptic chain."""
+        """ASR callback: runs the full LLM → ElevenLabs TTS → avatar → WebSocket chain."""
         if not self._session_context or not self._avatar:
             logger.warning("[Session] Transcript received before session_context — ignoring.")
             return
         logger.debug("[Session] Transcript: %s", text)
         response = await clinical_response(self._session_context, text)
-        await self._avatar.speak(response)
+        audio_bytes = await self._avatar.speak(response)
         patient_id: str = self._session_context.get("patient_id", "unknown")
+        audio_url: str | None = None
+        if audio_bytes:
+            import base64
+            audio_url = "data:audio/mpeg;base64," + base64.b64encode(audio_bytes).decode()
         await self._ws.send_avatar_instruction(
             patient_id=patient_id,
             instruction_type="speak",
             text=response,
             haptic="buzz",
+            audio_url=audio_url,
         )
 
     async def _end_session(self, payload: dict) -> None:
