@@ -25,8 +25,13 @@ class PhotonClient:
     """
 
     def __init__(self) -> None:
-        self.api_key: str = _require_env("PHOTON_API_KEY")
-        self.sender_id: str = _require_env("PHOTON_SENDER_ID")
+        self.mock: bool = os.environ.get("MOCK_PHOTON", "0") == "1" or os.environ.get("PHOTON_API_KEY", "") == "mock"
+        if self.mock:
+            self.api_key = "mock"
+            self.sender_id = os.environ.get("PHOTON_SENDER_ID", "mock")
+        else:
+            self.api_key: str = _require_env("PHOTON_API_KEY")
+            self.sender_id: str = _require_env("PHOTON_SENDER_ID")
         self._client = httpx.AsyncClient(
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout=8.0,
@@ -55,6 +60,15 @@ class PhotonClient:
         }
         if quick_replies:
             payload["quick_replies"] = quick_replies
+        if self.mock:
+            # Mock mode: print the message to logs and return a fake id.
+            # Shows judges the exact message the patient would receive.
+            import json as _json
+            print("=" * 60)
+            print("[PHOTON MOCK] Would send iMessage:")
+            print(_json.dumps(payload, indent=2))
+            print("=" * 60)
+            return "mock_msg_" + str(abs(hash(content)))[:10]
         resp = await self._client.post(f"{PHOTON_BASE}/messages/send", json=payload)
         resp.raise_for_status()
         return resp.json()["message_id"]
