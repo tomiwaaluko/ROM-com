@@ -129,15 +129,19 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
 
     switch (type) {
       // Backend schema v1.1 messages
-      case 'gesture':
+      case 'gesture': {
+        const confidence = payload.confidence as number;
         useExerciseStore.getState().updateNormalizedAngle(payload.normalized_rom as number);
+        useCalibrationStore.getState().setRecognized(confidence > 0.6);
+        useCalibrationStore.getState().updateLiveAngle(payload.normalized_rom as number);
         set({
           lastGesture: {
             name: payload.name as string,
-            confidence: payload.confidence as number,
+            confidence,
           },
         });
         break;
+      }
       case 'fma_score':
         useSessionStore.getState().updateFMAScore({
           domain_a: payload.domain_a as number,
