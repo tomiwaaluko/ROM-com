@@ -17,7 +17,7 @@ import * as THREE from 'three';
 const SPRING_SNAPPY = { type: 'spring', stiffness: 260, damping: 22 } as const;
 const SPRING_SOFT   = { type: 'spring', stiffness: 100, damping: 20 } as const;
 const SPRING_LAZY   = { type: 'spring', stiffness: 60,  damping: 18 } as const;
-const ROM_COM_MARK = '/romcomimage%20(1).png';
+const KINETICLAB_MARK = '/kineticlab-mark.png';
 
 const fadeUp = {
   hidden:  { opacity: 0, y: 28 },
@@ -28,84 +28,259 @@ const stagger = (delay = 0.08) => ({
   visible: { transition: { staggerChildren: delay } },
 });
 
+type Point3 = [number, number, number];
+
+function BoneSegment({
+  from,
+  to,
+  radius = 0.025,
+  color = '#fff1e7',
+  opacity = 0.9,
+}: {
+  from: Point3;
+  to: Point3;
+  radius?: number;
+  color?: string;
+  opacity?: number;
+}) {
+  const { midpoint, length, quaternion } = useMemo(() => {
+    const start = new THREE.Vector3(...from);
+    const end = new THREE.Vector3(...to);
+    const direction = end.clone().sub(start);
+    const segmentLength = direction.length();
+    const q = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      direction.clone().normalize()
+    );
+
+    return {
+      midpoint: start.clone().add(end).multiplyScalar(0.5),
+      length: segmentLength,
+      quaternion: q,
+    };
+  }, [from, to]);
+
+  return (
+    <mesh position={midpoint} quaternion={quaternion}>
+      <cylinderGeometry args={[radius, radius * 0.72, length, 16]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={0.08}
+        roughness={0.38}
+        metalness={0.2}
+        transparent
+        opacity={opacity}
+      />
+    </mesh>
+  );
+}
+
+function Joint({
+  position,
+  radius = 0.055,
+  color = '#ff782f',
+}: {
+  position: Point3;
+  radius?: number;
+  color?: string;
+}) {
+  return (
+    <mesh position={position}>
+      <sphereGeometry args={[radius, 24, 24]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={0.45}
+        roughness={0.22}
+        metalness={0.35}
+      />
+    </mesh>
+  );
+}
+
+function MuscleRibbon({
+  points,
+  color,
+  radius = 0.017,
+  opacity = 0.78,
+}: {
+  points: Point3[];
+  color: string;
+  radius?: number;
+  opacity?: number;
+}) {
+  const curve = useMemo(
+    () => new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point))),
+    [points]
+  );
+
+  return (
+    <mesh>
+      <tubeGeometry args={[curve, 96, radius, 10, false]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={0.32}
+        roughness={0.3}
+        metalness={0.18}
+        transparent
+        opacity={opacity}
+      />
+    </mesh>
+  );
+}
+
+function RibArc({
+  y,
+  scale,
+  opacity,
+}: {
+  y: number;
+  scale: number;
+  opacity: number;
+}) {
+  const curve = useMemo(() => new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.52 * scale, y, -0.02),
+    new THREE.Vector3(-0.28 * scale, y - 0.12, 0.14),
+    new THREE.Vector3(0, y - 0.16, 0.18),
+    new THREE.Vector3(0.28 * scale, y - 0.12, 0.14),
+    new THREE.Vector3(0.52 * scale, y, -0.02),
+  ]), [scale, y]);
+
+  return (
+    <mesh>
+      <tubeGeometry args={[curve, 72, 0.01, 8, false]} />
+      <meshStandardMaterial
+        color="#f6a43c"
+        emissive="#ff782f"
+        emissiveIntensity={0.14}
+        transparent
+        opacity={opacity}
+        roughness={0.45}
+      />
+    </mesh>
+  );
+}
+
 /* ─── 3D Hero Canvas ─────────────────────────────────── */
-function ArmOrb() {
+function MuscleSkeletonHero() {
   const groupRef = useRef<THREE.Group>(null);
-  const ring1Ref = useRef<THREE.Mesh>(null);
-  const ring2Ref = useRef<THREE.Mesh>(null);
-  const ring3Ref = useRef<THREE.Mesh>(null);
+  const chestRef = useRef<THREE.Group>(null);
+  const leftArmRef = useRef<THREE.Group>(null);
+  const rightArmRef = useRef<THREE.Group>(null);
   const particlesRef = useRef<THREE.Points>(null);
 
   const particlePositions = useMemo(() => {
-    const count = 180;
+    const count = 130;
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      const phi   = Math.acos(-1 + (2 * i) / count);
-      const theta = Math.sqrt(count * Math.PI) * phi;
-      const r = 1.4 + ((i * 17) % 31) / 100;
-      pos[i * 3]     = r * Math.cos(theta) * Math.sin(phi);
-      pos[i * 3 + 1] = r * Math.sin(theta) * Math.sin(phi);
-      pos[i * 3 + 2] = r * Math.cos(phi);
+      const angle = i * 2.399963;
+      const radius = 0.5 + ((i * 19) % 90) / 100;
+      pos[i * 3] = Math.cos(angle) * radius * 1.2;
+      pos[i * 3 + 1] = -1.0 + ((i * 37) % 210) / 100;
+      pos[i * 3 + 2] = Math.sin(angle) * radius * 0.55 - 0.15;
     }
     return pos;
   }, []);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    if (groupRef.current)   groupRef.current.rotation.y   = t * 0.18;
-    if (ring1Ref.current)   ring1Ref.current.rotation.z   = t * 0.5;
-    if (ring2Ref.current)   ring2Ref.current.rotation.x   = t * 0.32;
-    if (ring3Ref.current) {
-      ring3Ref.current.rotation.y = t * 0.22;
-      ring3Ref.current.rotation.z = t * 0.11;
+    if (groupRef.current) {
+      groupRef.current.rotation.y = Math.sin(t * 0.55) * 0.22;
+      groupRef.current.position.y = Math.sin(t * 1.2) * 0.025;
+    }
+    if (chestRef.current) {
+      const breath = 1 + Math.sin(t * 1.8) * 0.025;
+      chestRef.current.scale.set(breath, 1 + Math.sin(t * 1.8) * 0.012, breath);
+    }
+    if (leftArmRef.current) {
+      leftArmRef.current.rotation.z = -0.42 + Math.sin(t * 1.15) * 0.22;
+      leftArmRef.current.rotation.x = Math.sin(t * 0.85) * 0.12;
+    }
+    if (rightArmRef.current) {
+      rightArmRef.current.rotation.z = 0.38 + Math.sin(t * 1.05 + 1.1) * 0.24;
+      rightArmRef.current.rotation.x = Math.sin(t * 0.95 + 0.7) * 0.12;
     }
     if (particlesRef.current) particlesRef.current.rotation.y = -t * 0.08;
   });
 
   return (
-    <group ref={groupRef}>
-      {/* Core sphere */}
-      <mesh>
-        <sphereGeometry args={[0.55, 48, 48]} />
-        <meshStandardMaterial
-          color="#FF782F"
-          emissive="#FF782F"
-          emissiveIntensity={0.4}
-          roughness={0.15}
-          metalness={0.8}
-          transparent
-          opacity={0.85}
+    <group ref={groupRef} position={[0, -0.05, 0]} rotation={[0.08, -0.18, 0]}>
+      <group ref={chestRef}>
+        <BoneSegment from={[0, -0.9, 0]} to={[0, 0.62, 0]} radius={0.026} color="#fff1e7" opacity={0.86} />
+        <BoneSegment from={[-0.62, 0.36, 0]} to={[0.62, 0.36, 0]} radius={0.022} color="#fff1e7" opacity={0.78} />
+        <BoneSegment from={[-0.36, -0.9, 0]} to={[0.36, -0.9, 0]} radius={0.024} color="#fff1e7" opacity={0.72} />
+        <BoneSegment from={[-0.62, 0.36, 0]} to={[-0.36, -0.9, 0]} radius={0.018} color="#e8cfc2" opacity={0.56} />
+        <BoneSegment from={[0.62, 0.36, 0]} to={[0.36, -0.9, 0]} radius={0.018} color="#e8cfc2" opacity={0.56} />
+
+        {[0.24, 0.06, -0.12, -0.3, -0.48].map((y, index) => (
+          <RibArc key={y} y={y} scale={1 - index * 0.07} opacity={0.34 - index * 0.035} />
+        ))}
+
+        <MuscleRibbon
+          points={[[-0.56, 0.28, 0.1], [-0.26, -0.02, 0.22], [-0.1, -0.52, 0.16], [-0.34, -0.84, 0.04]]}
+          color="#ff782f"
+          radius={0.024}
+          opacity={0.68}
         />
-      </mesh>
-
-      {/* Inner glow */}
-      <mesh>
-        <sphereGeometry args={[0.6, 32, 32]} />
-        <meshStandardMaterial
-          color="#FF782F"
-          emissive="#FF782F"
-          emissiveIntensity={0.15}
-          transparent
-          opacity={0.12}
-          side={THREE.BackSide}
+        <MuscleRibbon
+          points={[[0.56, 0.28, 0.1], [0.26, -0.02, 0.22], [0.1, -0.52, 0.16], [0.34, -0.84, 0.04]]}
+          color="#d63368"
+          radius={0.024}
+          opacity={0.68}
         />
-      </mesh>
 
-      {/* Orbital rings */}
-      <mesh ref={ring1Ref}>
-        <torusGeometry args={[0.9, 0.012, 8, 80]} />
-        <meshStandardMaterial color="#FF782F" emissive="#FF782F" emissiveIntensity={0.8} />
-      </mesh>
-      <mesh ref={ring2Ref} rotation={[Math.PI / 3, 0, 0]}>
-        <torusGeometry args={[1.15, 0.008, 8, 80]} />
-        <meshStandardMaterial color="#D63368" emissive="#D63368" emissiveIntensity={0.7} transparent opacity={0.7} />
-      </mesh>
-      <mesh ref={ring3Ref} rotation={[Math.PI / 5, Math.PI / 4, 0]}>
-        <torusGeometry args={[1.32, 0.005, 8, 80]} />
-        <meshStandardMaterial color="#FF782F" emissive="#FF782F" emissiveIntensity={0.4} transparent opacity={0.4} />
-      </mesh>
+        {[
+          [0, 0.62, 0],
+          [-0.62, 0.36, 0],
+          [0.62, 0.36, 0],
+          [-0.36, -0.9, 0],
+          [0.36, -0.9, 0],
+        ].map((position) => (
+          <Joint key={position.join(',')} position={position as Point3} radius={0.045} color="#f6a43c" />
+        ))}
 
-      {/* Fibonacci particles */}
+        <mesh position={[0, 0.88, 0.02]}>
+          <sphereGeometry args={[0.16, 32, 32]} />
+          <meshStandardMaterial
+            color="#fff1e7"
+            emissive="#f6a43c"
+            emissiveIntensity={0.08}
+            roughness={0.42}
+            metalness={0.12}
+            transparent
+            opacity={0.9}
+          />
+        </mesh>
+      </group>
+
+      <group ref={leftArmRef} position={[-0.62, 0.36, 0]}>
+        <BoneSegment from={[0, 0, 0]} to={[-0.45, -0.35, 0.04]} radius={0.023} />
+        <BoneSegment from={[-0.45, -0.35, 0.04]} to={[-0.58, -0.82, 0.08]} radius={0.019} />
+        <MuscleRibbon
+          points={[[0.02, -0.02, 0.12], [-0.32, -0.24, 0.18], [-0.48, -0.58, 0.15], [-0.56, -0.82, 0.1]]}
+          color="#ff782f"
+          radius={0.019}
+        />
+        <Joint position={[0, 0, 0]} />
+        <Joint position={[-0.45, -0.35, 0.04]} radius={0.043} color="#d63368" />
+        <Joint position={[-0.58, -0.82, 0.08]} radius={0.038} color="#f6a43c" />
+      </group>
+
+      <group ref={rightArmRef} position={[0.62, 0.36, 0]}>
+        <BoneSegment from={[0, 0, 0]} to={[0.42, -0.33, 0.04]} radius={0.023} />
+        <BoneSegment from={[0.42, -0.33, 0.04]} to={[0.54, -0.78, 0.08]} radius={0.019} />
+        <MuscleRibbon
+          points={[[-0.02, -0.02, 0.12], [0.3, -0.2, 0.19], [0.46, -0.53, 0.15], [0.54, -0.78, 0.1]]}
+          color="#d63368"
+          radius={0.019}
+        />
+        <Joint position={[0, 0, 0]} />
+        <Joint position={[0.42, -0.33, 0.04]} radius={0.043} color="#ff782f" />
+        <Joint position={[0.54, -0.78, 0.08]} radius={0.038} color="#f6a43c" />
+      </group>
+
       <points ref={particlesRef}>
         <bufferGeometry>
           <bufferAttribute
@@ -113,7 +288,7 @@ function ArmOrb() {
             args={[particlePositions, 3]}
           />
         </bufferGeometry>
-        <pointsMaterial size={0.018} color="#FF782F" transparent opacity={0.55} sizeAttenuation />
+        <pointsMaterial size={0.012} color="#f6a43c" transparent opacity={0.38} sizeAttenuation />
       </points>
     </group>
   );
@@ -126,10 +301,11 @@ function HeroCanvas() {
       style={{ width: '100%', height: '100%', background: 'transparent' }}
       gl={{ alpha: true, antialias: true }}
     >
-      <ambientLight intensity={0.3} />
-      <pointLight position={[3, 3, 3]} intensity={2.5} color="#FF782F" />
-      <pointLight position={[-3, -2, -2]} intensity={1.2} color="#D63368" />
-      <ArmOrb />
+      <ambientLight intensity={0.42} />
+      <pointLight position={[3, 3, 3]} intensity={2.2} color="#FF782F" />
+      <pointLight position={[-3, -2, -2]} intensity={1.3} color="#D63368" />
+      <pointLight position={[0, 1.4, 2]} intensity={0.8} color="#fff1e7" />
+      <MuscleSkeletonHero />
     </Canvas>
   );
 }
@@ -173,7 +349,7 @@ function FloatingNav() {
     >
       {/* Logo */}
       <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em', marginRight: 28, color: '#fff8f1', whiteSpace: 'nowrap' }}>
-        Rom<span style={{ color: 'var(--accent)' }}>-Com</span>
+        Kinetic<span style={{ color: 'var(--accent)' }}>Lab</span>
       </span>
 
       {/* Links */}
@@ -255,8 +431,8 @@ function HeroSection() {
       }} />
 
       <motion.img
-        src={ROM_COM_MARK}
-        alt="Rom-Com logo"
+        src={KINETICLAB_MARK}
+        alt="KineticLab logo"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...SPRING_SOFT, delay: 0.12 }}
@@ -306,7 +482,7 @@ function HeroSection() {
               display: 'inline-block',
               animation: 'pulse 2s ease-in-out infinite',
             }} />
-            Clinical AI Companion
+            Stroke & TBI Rehabilitation
           </span>
         </motion.div>
 
@@ -322,13 +498,14 @@ function HeroSection() {
             maxWidth: 560,
           }}
         >
-          Arm recovery,{' '}
+          Rehab that fits
+          <br />
           <span style={{
             background: 'linear-gradient(90deg, var(--accent), #F6A43C)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
-            guided by AI
+            your range of motion.
           </span>
         </motion.h1>
 
@@ -339,9 +516,9 @@ function HeroSection() {
           color: 'var(--text-secondary)',
           maxWidth: '52ch',
         }}>
-          Real-time motion capture meets clinical assessment. Rom-Com tracks
-          your upper-limb range of motion, scores it against the Fugl-Meyer scale,
-          and delivers personalized coaching through a live avatar.
+          KineticLab uses your webcam to track upper-limb movement, calibrate to
+          your personal range of motion in 30 seconds, and score every session
+          against the Fugl-Meyer Assessment scale — no hardware, no clinic required.
         </motion.p>
 
         {/* CTAs */}
@@ -391,8 +568,8 @@ function HeroSection() {
         <motion.div variants={fadeUp} style={{ display: 'flex', gap: 32, marginTop: 8 }}>
           {[
             { value: '< 2s', label: 'End-to-end latency' },
-            { value: '5',    label: 'Exercise types' },
-            { value: 'FMA',  label: 'Fugl-Meyer scoring' },
+            { value: '$0',   label: 'Hardware required' },
+            { value: 'FMA-UE', label: 'Subscale scoring' },
           ].map(({ value, label }) => (
             <div key={label}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{value}</div>
@@ -1005,7 +1182,7 @@ function CTASection() {
             boxShadow: '0 0 40px rgba(255,120,47,0.25)',
           }}
         >
-          Launch Rom-Com
+          Launch KineticLab
         </motion.button>
       </motion.div>
     </section>
@@ -1025,7 +1202,7 @@ function Footer() {
       gap: 16,
     }}>
       <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.02em', color: 'var(--text-secondary)' }}>
-        Rom<span style={{ color: 'var(--accent)' }}>-Com</span>
+        Kinetic<span style={{ color: 'var(--accent)' }}>Lab</span>
       </span>
 
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>

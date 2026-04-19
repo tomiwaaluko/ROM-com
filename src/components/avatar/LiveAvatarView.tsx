@@ -220,7 +220,7 @@ export function LiveAvatarView() {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center py-6 px-4">
-      <h1 className="text-2xl font-semibold mb-2">Rom-Com · Live Avatar</h1>
+      <h1 className="text-2xl font-semibold mb-2">KineticLab · Live Avatar</h1>
       <div className="text-xs uppercase tracking-widest text-neutral-400 mb-4">
         status: <span className="text-white">{status}</span>
       </div>

@@ -141,7 +141,7 @@ function Dashboard() {
 
   return (
     <div style={{ fontFamily: 'monospace', padding: 24 }}>
-      <h1>Rom-Com - WebSocket Foundation</h1>
+      <h1>KineticLab - WebSocket Foundation</h1>
       <p>Status: <strong>{status}</strong> {isMockMode && '(mock mode)'}</p>
       <hr />
       <PipelineControl />

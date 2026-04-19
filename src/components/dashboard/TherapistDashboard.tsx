@@ -55,7 +55,7 @@ export function TherapistDashboard() {
     <div style={styles.root}>
       {/* Top bar */}
       <header style={styles.topBar}>
-        <div style={styles.logo}>Rom-Com</div>
+        <div style={styles.logo}>KineticLab</div>
         <div style={styles.topBarCenter}>
           <button
             style={activeTab === 'clinical' ? styles.tabActive : styles.tab}
