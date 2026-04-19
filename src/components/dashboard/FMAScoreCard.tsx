@@ -24,12 +24,12 @@ export function FMAScoreCard({ currentScore, maxScore = 52 }: FMAScoreCardProps)
       : delta < 0
         ? `${delta} pt \u2193`
         : '\u2014';
-  const deltaColor = delta > 0 ? '#00ff88' : delta < 0 ? '#ff4444' : '#888';
+  const deltaColor = delta > 0 ? '#F6A43C' : delta < 0 ? '#ff4444' : '#888';
 
   const domains = [
-    { label: 'A \u2014 Upper Extremity', value: currentScore.domainA, max: 36, color: '#00d4ff' },
-    { label: 'C \u2014 Wrist/Hand', value: currentScore.domainC, max: 10, color: '#00ccff' },
-    { label: 'E \u2014 Coordination', value: currentScore.domainE, max: 6, color: '#0099cc' },
+    { label: 'A \u2014 Upper Extremity', value: currentScore.domainA, max: 36, color: '#ff782f' },
+    { label: 'C \u2014 Wrist/Hand', value: currentScore.domainC, max: 10, color: '#F26B64' },
+    { label: 'E \u2014 Coordination', value: currentScore.domainE, max: 6, color: '#D63368' },
   ];
 
   return (
@@ -86,10 +86,10 @@ export function FMAScoreCard({ currentScore, maxScore = 52 }: FMAScoreCardProps)
 
 const styles: Record<string, React.CSSProperties> = {
   card: {
-    background: '#111827',
+    background: '#241612',
     borderRadius: 12,
     padding: 20,
-    border: '1px solid #1e2d42',
+    border: '1px solid #3d251d',
   },
   header: {
     display: 'flex',
@@ -127,14 +127,14 @@ const styles: Record<string, React.CSSProperties> = {
   barBg: {
     height: 8,
     borderRadius: 4,
-    background: '#1e2d42',
+    background: '#3d251d',
     overflow: 'hidden',
     marginBottom: 8,
   },
   barFill: {
     height: '100%',
     borderRadius: 4,
-    background: '#00d4ff',
+    background: '#ff782f',
     transition: 'width 0.5s ease',
   },
   severity: {
@@ -165,7 +165,7 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     height: 6,
     borderRadius: 3,
-    background: '#1e2d42',
+    background: '#3d251d',
     overflow: 'hidden',
   },
   domainBarFill: {

@@ -32,7 +32,7 @@ export function SessionHistoryChart() {
     <div style={styles.card}>
       <div style={styles.title}>Session History</div>
 
-      <div style={{ filter: 'drop-shadow(0 0 6px rgba(0,212,255,0.3))' }}>
+      <div style={{ filter: 'drop-shadow(0 0 6px rgba(255,120,47,0.3))' }}>
         <ResponsiveContainer width="100%" height={180}>
           <LineChart
             data={data}
@@ -45,21 +45,21 @@ export function SessionHistoryChart() {
               }
             }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e2d42" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#3d251d" />
             <XAxis
               dataKey="session"
               tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
-              stroke="#1e2d42"
+              stroke="#3d251d"
             />
             <YAxis
               domain={[0, 52]}
               tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
-              stroke="#1e2d42"
+              stroke="#3d251d"
             />
             <Tooltip
               contentStyle={{
-                background: '#1a1a2e',
-                border: '1px solid #1e2d42',
+                background: '#301d17',
+                border: '1px solid #3d251d',
                 borderRadius: 8,
                 fontSize: 12,
                 color: '#fff',
@@ -68,10 +68,10 @@ export function SessionHistoryChart() {
             <Line
               type="monotone"
               dataKey="score"
-              stroke="#00d4ff"
+              stroke="#ff782f"
               strokeWidth={2.5}
-              dot={{ fill: '#00d4ff', r: 4, cursor: 'pointer' }}
-              activeDot={{ r: 6, fill: '#fff', stroke: '#00d4ff', strokeWidth: 2 }}
+              dot={{ fill: '#ff782f', r: 4, cursor: 'pointer' }}
+              activeDot={{ r: 6, fill: '#fff', stroke: '#ff782f', strokeWidth: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -98,7 +98,7 @@ export function SessionHistoryChart() {
             </div>
             <div>
               <span style={styles.breakdownLabel}>Total</span>
-              <span style={{ ...styles.breakdownVal, color: '#00d4ff' }}>
+              <span style={{ ...styles.breakdownVal, color: '#ff782f' }}>
                 {selectedSession.fmaScore.total}/52
               </span>
             </div>
@@ -111,10 +111,10 @@ export function SessionHistoryChart() {
 
 const styles: Record<string, React.CSSProperties> = {
   card: {
-    background: '#111827',
+    background: '#241612',
     borderRadius: 12,
     padding: 20,
-    border: '1px solid #1e2d42',
+    border: '1px solid #3d251d',
   },
   title: {
     fontSize: 13,
@@ -127,9 +127,9 @@ const styles: Record<string, React.CSSProperties> = {
   breakdown: {
     marginTop: 12,
     padding: 12,
-    background: '#0d1117',
+    background: '#1d120f',
     borderRadius: 8,
-    border: '1px solid #1e2d42',
+    border: '1px solid #3d251d',
   },
   breakdownTitle: {
     fontSize: 12,

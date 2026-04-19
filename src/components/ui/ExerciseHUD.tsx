@@ -138,7 +138,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   dashBtn: {
     background: 'rgba(30,45,66,0.8)',
-    border: '1px solid rgba(0,212,255,0.3)',
+    border: '1px solid rgba(255,120,47,0.3)',
     color: '#fff',
     padding: '6px 14px',
     borderRadius: 6,

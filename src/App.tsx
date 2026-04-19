@@ -1,5 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { LandingPage } from './pages/LandingPage';
+import { SetupPage } from './pages/SetupPage';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useMockData } from './hooks/useMockData';
 import { useCalibrationStore } from './stores/calibrationStore';
@@ -51,7 +53,7 @@ function PipelineControl() {
           fontSize: 15,
           padding: '6px 18px',
           cursor: loading ? 'wait' : 'pointer',
-          background: running ? '#c0392b' : '#27ae60',
+          background: running ? 'var(--accent-2)' : 'var(--accent)',
           color: '#fff',
           border: 'none',
           borderRadius: 4,
@@ -60,7 +62,7 @@ function PipelineControl() {
       >
         {loading ? '...' : running ? '⏹ Stop Pipeline' : '▶ Start Pipeline'}
       </button>
-      <span style={{ color: running ? '#2ecc71' : '#888', fontSize: 13 }}>
+      <span style={{ color: running ? 'var(--accent-gold)' : 'var(--text-muted)', fontSize: 13 }}>
         {running ? '● Pipeline running (MediaPipe + gesture classifier)' : '○ Pipeline stopped'}
       </span>
     </div>
@@ -106,7 +108,7 @@ function CameraPreview() {
             fontSize: 15,
             padding: '6px 18px',
             cursor: 'pointer',
-            background: active ? '#c0392b' : '#2980b9',
+            background: active ? 'var(--accent-2)' : 'var(--accent)',
             color: '#fff',
             border: 'none',
             borderRadius: 4,
@@ -114,9 +116,9 @@ function CameraPreview() {
         >
           {active ? 'Stop Camera' : 'Start Camera'}
         </button>
-        {active && <span style={{ color: '#2ecc71' }}>● Live</span>}
+        {active && <span style={{ color: 'var(--accent-gold)' }}>● Live</span>}
       </div>
-      {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--accent-3)' }}>{error}</p>}
       <video
         ref={videoRef}
         autoPlay
@@ -140,7 +142,7 @@ function Dashboard() {
 
   return (
     <div style={{ fontFamily: 'monospace', padding: 24 }}>
-      <h1>KineticLab — WebSocket Foundation</h1>
+      <h1>KineticLab - WebSocket Foundation</h1>
       <p>Status: <strong>{status}</strong> {isMockMode && '(mock mode)'}</p>
       <hr />
       <PipelineControl />
@@ -206,7 +208,9 @@ function App() {
     <BrowserRouter>
       <ProgressionToast />
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/dev" element={<Dashboard />} />
+        <Route path="/setup" element={<SetupPage />} />
         <Route path="/calibration" element={<CalibrationPage />} />
         <Route path="/exercise/target-reach" element={<TargetReachPage />} />
         <Route path="/exercise/trajectory-trace" element={<TrajectoryTracePage />} />

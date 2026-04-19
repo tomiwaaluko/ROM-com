@@ -115,7 +115,7 @@ export function SkeletonOverlay({ mockMode = true }: SkeletonOverlayProps) {
       {/* Bone lines */}
       <lineSegments geometry={lineGeometry}>
         <lineBasicMaterial
-          color="#00d4ff"
+          color="#ff782f"
           transparent
           opacity={0.6}
           linewidth={1}
@@ -130,7 +130,7 @@ export function SkeletonOverlay({ mockMode = true }: SkeletonOverlayProps) {
           <mesh key={idx} position={[pos[0], pos[1], pos[2]]}>
             <sphereGeometry args={[0.02, 8, 8]} />
             <meshBasicMaterial
-              color="#00d4ff"
+              color="#ff782f"
               transparent
               opacity={0.8}
             />
@@ -146,7 +146,7 @@ export function SkeletonOverlay({ mockMode = true }: SkeletonOverlayProps) {
           <mesh key={`glow-${idx}`} position={[pos[0], pos[1], pos[2]]}>
             <sphereGeometry args={[0.04, 8, 8]} />
             <meshBasicMaterial
-              color="#00d4ff"
+              color="#ff782f"
               transparent
               opacity={0.2}
             />

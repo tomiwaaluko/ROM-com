@@ -20,12 +20,12 @@ export function RecognitionIndicator({ recognized }: RecognitionIndicatorProps) 
     >
       <motion.div
         animate={{
-          backgroundColor: recognized ? '#00ff88' : '#ff4444',
+          backgroundColor: recognized ? '#F6A43C' : '#ff4444',
           boxShadow: recognized
             ? [
-                '0 0 8px #00ff88, 0 0 20px rgba(0,255,136,0.4)',
-                '0 0 12px #00ff88, 0 0 30px rgba(0,255,136,0.6)',
-                '0 0 8px #00ff88, 0 0 20px rgba(0,255,136,0.4)',
+                '0 0 8px #F6A43C, 0 0 20px rgba(0,255,136,0.4)',
+                '0 0 12px #F6A43C, 0 0 30px rgba(0,255,136,0.6)',
+                '0 0 8px #F6A43C, 0 0 20px rgba(0,255,136,0.4)',
               ]
             : '0 0 6px #ff4444, 0 0 12px rgba(255,68,68,0.3)',
         }}
@@ -46,7 +46,7 @@ export function RecognitionIndicator({ recognized }: RecognitionIndicatorProps) 
           fontFamily: 'ui-monospace, Consolas, monospace',
           fontSize: 13,
           fontWeight: 600,
-          color: recognized ? '#00ff88' : '#ff4444',
+          color: recognized ? '#F6A43C' : '#ff4444',
           letterSpacing: '0.05em',
           textTransform: 'uppercase',
         }}

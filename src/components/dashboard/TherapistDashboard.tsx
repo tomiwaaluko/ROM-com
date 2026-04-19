@@ -45,7 +45,7 @@ export function TherapistDashboard() {
 
   if (status !== 'connected') {
     return (
-      <div style={{ background: '#0a0d14', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'ui-monospace, Consolas, monospace' }}>
+      <div style={{ background: '#170f0d', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'ui-monospace, Consolas, monospace' }}>
         Connecting...
       </div>
     );
@@ -123,13 +123,13 @@ export function TherapistDashboard() {
             <div style={styles.brainPlaceholder}>
               <svg viewBox="0 0 200 160" width="300" height="240">
                 {/* Simplified brain outline */}
-                <ellipse cx="100" cy="80" rx="85" ry="65" fill="none" stroke="#1e2d42" strokeWidth="2" />
-                <ellipse cx="100" cy="80" rx="60" ry="45" fill="none" stroke="#1e2d42" strokeWidth="1" />
+                <ellipse cx="100" cy="80" rx="85" ry="65" fill="none" stroke="#3d251d" strokeWidth="2" />
+                <ellipse cx="100" cy="80" rx="60" ry="45" fill="none" stroke="#3d251d" strokeWidth="1" />
                 {/* M1 highlight region */}
-                <ellipse cx="75" cy="50" rx="20" ry="15" fill="#00d4ff" opacity="0.3" stroke="#00d4ff" strokeWidth="1.5" />
-                <text x="75" y="54" textAnchor="middle" fill="#00d4ff" fontSize="8" fontFamily="monospace">M1</text>
+                <ellipse cx="75" cy="50" rx="20" ry="15" fill="#ff782f" opacity="0.3" stroke="#ff782f" strokeWidth="1.5" />
+                <text x="75" y="54" textAnchor="middle" fill="#ff782f" fontSize="8" fontFamily="monospace">M1</text>
                 {/* Central sulcus line */}
-                <line x1="70" y1="20" x2="90" y2="140" stroke="#1e2d42" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="70" y1="20" x2="90" y2="140" stroke="#3d251d" strokeWidth="1" strokeDasharray="4 4" />
               </svg>
             </div>
             <div style={styles.researcherAnnotation}>
@@ -160,7 +160,7 @@ const printCSS = `
 const styles: Record<string, React.CSSProperties> = {
   root: {
     minHeight: '100vh',
-    background: '#0a0d14',
+    background: '#170f0d',
     color: '#fff',
     fontFamily: 'ui-monospace, Consolas, monospace',
   },
@@ -169,14 +169,14 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '12px 24px',
-    borderBottom: '1px solid #1e2d42',
+    borderBottom: '1px solid #3d251d',
     flexWrap: 'wrap',
     gap: 8,
   },
   logo: {
     fontSize: 18,
     fontWeight: 700,
-    color: '#00d4ff',
+    color: '#ff782f',
     letterSpacing: '0.05em',
   },
   topBarCenter: {
@@ -190,7 +190,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tab: {
     background: 'transparent',
-    border: '1px solid #1e2d42',
+    border: '1px solid #3d251d',
     color: 'rgba(255,255,255,0.5)',
     padding: '6px 14px',
     borderRadius: 6,
@@ -199,9 +199,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'ui-monospace, Consolas, monospace',
   },
   tabActive: {
-    background: '#1e2d42',
-    border: '1px solid #00d4ff',
-    color: '#00d4ff',
+    background: '#3d251d',
+    border: '1px solid #ff782f',
+    color: '#ff782f',
     padding: '6px 14px',
     borderRadius: 6,
     cursor: 'pointer',
@@ -213,9 +213,9 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'rgba(255,255,255,0.5)',
   },
   select: {
-    background: '#111827',
+    background: '#241612',
     color: '#fff',
-    border: '1px solid #1e2d42',
+    border: '1px solid #3d251d',
     borderRadius: 4,
     padding: '4px 8px',
     fontSize: 12,
@@ -224,11 +224,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sessionBadge: {
     fontSize: 12,
-    color: '#00ff88',
+    color: '#F6A43C',
     fontWeight: 600,
   },
   navBtn: {
-    background: '#1e2d42',
+    background: '#3d251d',
     border: 'none',
     color: '#fff',
     padding: '6px 14px',
@@ -263,10 +263,10 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 auto',
   },
   researcherCard: {
-    background: '#111827',
+    background: '#241612',
     borderRadius: 12,
     padding: 24,
-    border: '1px solid #1e2d42',
+    border: '1px solid #3d251d',
     textAlign: 'center',
   },
   researcherTitle: {

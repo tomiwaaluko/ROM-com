@@ -10,7 +10,7 @@ interface ROMProgressArcProps {
 export function ROMProgressArc({
   angle,
   maxPossible = 1,
-  color = '#00ccff',
+  color = '#F26B64',
   size = 200,
 }: ROMProgressArcProps) {
   const strokeWidth = 8;
@@ -26,10 +26,10 @@ export function ROMProgressArc({
   const arcPath = describeArc(cx, cy, radius, startAngle, endAngle);
   const bgPath = describeArc(cx, cy, radius, startAngle, startAngle + Math.PI);
 
-  // Color transitions from cyan to green as it fills
+  // Color transitions from orange to magenta as it fills
   const fillColor =
     sweepFraction > 0.8
-      ? lerpColor(color, '#00ff88', (sweepFraction - 0.8) / 0.2)
+      ? lerpColor(color, '#F6A43C', (sweepFraction - 0.8) / 0.2)
       : color;
 
   const degrees = Math.round(angle * 180);

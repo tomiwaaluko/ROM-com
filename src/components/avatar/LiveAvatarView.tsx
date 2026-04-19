@@ -278,7 +278,7 @@ export function LiveAvatarView() {
         </button>
         <button
           onClick={() => triggerPatientSpeech('I feel really discouraged today. I do not want to do this.')}
-          className="px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-sm"
+          className="px-3 py-2 rounded-lg bg-[#d63368] hover:bg-[#e34b7d] text-sm"
         >
           Patient: &ldquo;I feel discouraged&rdquo;
         </button>

@@ -124,13 +124,13 @@ function PathLine({ path, elapsed, handScreenPos, onAccuracyUpdate }: PathLinePr
     <group position={[0, 0, -0.1]}>
       {/* Full path — dim untraced */}
       <ThreeLine ref={untracedRef} geometry={fullGeometry}>
-        <lineBasicMaterial color="#1e2d42" linewidth={2} />
+        <lineBasicMaterial color="#3d251d" linewidth={2} />
       </ThreeLine>
 
-      {/* Traced portion — cyan glow */}
+      {/* Traced portion - orange glow */}
       <ThreeLine ref={tracedRef}>
         <bufferGeometry />
-        <lineBasicMaterial color="#00d4ff" linewidth={3} transparent opacity={0.9} />
+        <lineBasicMaterial color="#ff782f" linewidth={3} transparent opacity={0.9} />
       </ThreeLine>
 
       {/* Missed points — red flash */}
@@ -181,7 +181,7 @@ function HandDot({ screenPos, recognized }: { screenPos: { x: number; y: number 
     if (glowRef.current) glowRef.current.scale.setScalar(pulse * 1.8);
   });
 
-  const color = recognized ? '#00d4ff' : '#ff4444';
+  const color = recognized ? '#ff782f' : '#ff4444';
 
   return (
     <>
@@ -210,14 +210,14 @@ function AccuracyBar({ accuracy }: { accuracy: number }) {
       {/* Background bar */}
       <mesh position={[0, barHeight / 2, 0]}>
         <planeGeometry args={[0.06, barHeight]} />
-        <meshBasicMaterial color="#1a1a2e" transparent opacity={0.8} />
+        <meshBasicMaterial color="#301d17" transparent opacity={0.8} />
       </mesh>
       {/* Fill bar */}
       {fillHeight > 0 && (
         <mesh position={[0, fillHeight / 2, 0.01]}>
           <planeGeometry args={[0.06, fillHeight]} />
           <meshBasicMaterial
-            color={accuracy >= 80 ? '#00ff88' : accuracy >= 50 ? '#ffcc00' : '#ff4444'}
+            color={accuracy >= 80 ? '#F6A43C' : accuracy >= 50 ? '#ffcc00' : '#ff4444'}
             transparent
             opacity={0.8}
           />
@@ -338,7 +338,7 @@ function AccuracyOverlay({ accuracy }: { accuracy: number }) {
       <div
         style={{
           ...overlayStyles.value,
-          color: accuracy >= 80 ? '#00ff88' : accuracy >= 50 ? '#ffcc00' : '#ff4444',
+          color: accuracy >= 80 ? '#F6A43C' : accuracy >= 50 ? '#ffcc00' : '#ff4444',
         }}
       >
         {accuracy}%
@@ -400,7 +400,7 @@ export function TrajectoryTrace({ mockMode = false }: TrajectoryTraceProps) {
     return (
       <div
         style={{
-          background: '#0a0d14',
+          background: '#170f0d',
           color: '#fff',
           height: '100vh',
           display: 'flex',
@@ -415,12 +415,12 @@ export function TrajectoryTrace({ mockMode = false }: TrajectoryTraceProps) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0a0d14' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#170f0d' }}>
       <Canvas
         camera={{ position: [0, 0, 2.5], fov: 50 }}
         gl={{ antialias: true, alpha: false }}
         onCreated={({ gl }) => {
-          gl.setClearColor('#0a0d14');
+          gl.setClearColor('#170f0d');
         }}
       >
         <SceneContent mockMode={effectiveMock} />

@@ -419,6 +419,7 @@ async def pipeline_start():
     _pipeline_process = subprocess.Popen(
         [sys.executable, "pipeline.py"],
         cwd=_REPO_ROOT,
+        env={**os.environ, "PYTHONUTF8": "1"},
     )
     logger.info("Pipeline started (pid=%d)", _pipeline_process.pid)
     return {"status": "started", "pid": _pipeline_process.pid}

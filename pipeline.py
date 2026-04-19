@@ -132,11 +132,12 @@ class PipelineRunner:
         Blocking main loop. Call from a thread or use run_async() from FastAPI.
         Press 'c' to start calibration, 'q' to quit, 'u' to switch user.
         """
-        # Try both camera indices in case 0 is blocked
-        cap = cv2.VideoCapture(self.camera_index)
+        # On Windows prefer DirectShow over MSMF to avoid camera locking conflicts
+        _backend = cv2.CAP_DSHOW if hasattr(cv2, 'CAP_DSHOW') else cv2.CAP_ANY
+        cap = cv2.VideoCapture(self.camera_index, _backend)
         if not cap.isOpened():
             alt = 1 if self.camera_index == 0 else 0
-            cap = cv2.VideoCapture(alt)
+            cap = cv2.VideoCapture(alt, _backend)
         if not cap.isOpened():
             raise RuntimeError(f"Cannot open camera {self.camera_index}")
 
