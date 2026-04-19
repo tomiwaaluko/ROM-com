@@ -4,7 +4,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import GestureMessage
 from connection_manager import manager
-
 from kineticlab.photon.router import router as photon_router
 
 logging.basicConfig(level=logging.INFO)
@@ -12,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 START_TIME = time.time()
+
+_calibrate_pending: bool = False
+_calibrate_user: str = "user"
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,22 +23,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# Mount Sreekar's Photon iMessage webhook router (handles POST /photon/inbound)
 app.include_router(photon_router)
 
 @app.get("/")
 async def root():
     return {"status": "ok"}
 
-
 @app.get("/health")
 async def health():
-    return {
-        "uptime_seconds": round(time.time() - START_TIME, 2),
-        "active_connections": len(manager.active_connections),
-    }
-
+    return {"uptime_seconds": round(time.time() - START_TIME, 2), "active_connections": len(manager.active_connections)}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -51,20 +46,18 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
         logger.info("Client disconnected. Total: %d", len(manager.active_connections))
 
-
 @app.post("/internal/gesture")
 async def receive_gesture(gesture: GestureMessage):
-    message = {
-        "type": "gesture",
-        "payload": gesture.model_dump(),
-        "timestamp": time.time(),
-    }
-    await manager.broadcast(message)
+    g = gesture.model_dump()
+    ts = time.time()
+    await manager.broadcast({"type": "gesture", "payload": g, "timestamp": ts})
+    await manager.broadcast({"type": "calibration:angle", "payload": {"angle": round(g["normalized_rom"] * 180, 1)}, "timestamp": ts})
+    recognized = g["name"] != "unknown" and g["confidence"] > 0.5
+    await manager.broadcast({"type": "calibration:recognized", "payload": {"recognized": recognized}, "timestamp": ts})
+    if g.get("fma_total") is not None:
+        await manager.broadcast({"type": "session:fma_score", "payload": {"total": g["fma_total"], "severity": g["fma_severity"], "domain_a": g["fma_domain_a"], "domain_c": g["fma_domain_c"], "domain_e": g["fma_domain_e"]}, "timestamp": ts})
+    await manager.broadcast({"type": "exercise:normalized_angle", "payload": {"normalized_angle": g["normalized_rom"]}, "timestamp": ts})
     return {"broadcasted_to": len(manager.active_connections)}
-
-# Calibration trigger state
-_calibrate_pending = False
-_calibrate_user = "user"
 
 @app.post("/internal/calibrate")
 async def trigger_calibrate(user_id: str = "user"):
