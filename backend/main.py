@@ -446,3 +446,55 @@ async def pipeline_status():
     if _pipeline_process is None or _pipeline_process.poll() is not None:
         return {"running": False}
     return {"running": True, "pid": _pipeline_process.pid}
+
+
+
+# ----- TTS bridge: text → ElevenLabs PCM 24kHz → base64 for LiveAvatar -----
+import base64 as _base64
+import httpx as _httpx
+
+
+@app.post("/avatar/synthesize")
+async def avatar_synthesize(payload: dict):
+    """Synthesize text to PCM audio for LiveAvatar's agent.speak WebSocket event.
+
+    Body: {"text": "..."}
+    Returns: {"audio_b64": "<base64 PCM 24kHz 16-bit mono>", "text": "..."}
+
+    LiveAvatar LITE mode avatars don't do their own TTS — you stream PCM audio
+    over the ws_url WebSocket via `agent.speak` commands. This endpoint is that bridge.
+    """
+    text = (payload or {}).get("text", "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Missing text in body")
+
+    api_key = os.environ.get("ELEVEN_API_KEY") or os.environ.get("ELEVENLABS_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ElevenLabs API key not configured")
+
+    voice_id = os.environ.get("ELEVENLABS_VOICE_ID") or "WyFXw4PzMbRnp8iLMJwY"
+
+    # Use pcm_24000 output format — matches LiveAvatar's requirement
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=pcm_24000"
+
+    async with _httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            resp = await client.post(
+                url,
+                headers={"xi-api-key": api_key, "Content-Type": "application/json"},
+                json={
+                    "text": text,
+                    "model_id": "eleven_turbo_v2",
+                    "voice_settings": {"stability": 0.75, "similarity_boost": 0.85, "style": 0.2},
+                },
+            )
+            resp.raise_for_status()
+            pcm_bytes = resp.content
+        except _httpx.HTTPError as exc:
+            logger.error("ElevenLabs synth failed: %s", exc)
+            raise HTTPException(status_code=502, detail=f"ElevenLabs upstream error: {exc}")
+
+    audio_b64 = _base64.b64encode(pcm_bytes).decode("ascii")
+    logger.info("Synthesized %d chars → %d PCM bytes", len(text), len(pcm_bytes))
+    return {"audio_b64": audio_b64, "text": text, "byte_count": len(pcm_bytes)}
+
