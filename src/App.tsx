@@ -12,6 +12,7 @@ import { MirrorTherapy } from './exercises/MirrorTherapy';
 import { ForearmRotation } from './exercises/ForearmRotation';
 import { BimanualReach } from './exercises/BimanualReach';
 import { TherapistDashboard } from './components/dashboard/TherapistDashboard';
+import { ProgressionToast } from './components/ui/ProgressionToast';
 
 const BACKEND = 'http://localhost:8000';
 
@@ -201,6 +202,7 @@ function DashboardPage() {
 function App() {
   return (
     <BrowserRouter>
+      <ProgressionToast />
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/calibration" element={<CalibrationPage />} />
