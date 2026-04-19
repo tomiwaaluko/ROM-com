@@ -1,5 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { LandingPage } from './pages/LandingPage';
+import { SetupPage } from './pages/SetupPage';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useMockData } from './hooks/useMockData';
 import { useCalibrationStore } from './stores/calibrationStore';
@@ -204,7 +206,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/dev" element={<Dashboard />} />
+        <Route path="/setup" element={<SetupPage />} />
         <Route path="/calibration" element={<CalibrationPage />} />
         <Route path="/exercise/target-reach" element={<TargetReachPage />} />
         <Route path="/exercise/trajectory-trace" element={<TrajectoryTracePage />} />
