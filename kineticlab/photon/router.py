@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 
+import httpx
 from fastapi import APIRouter, Request
 
 logger = logging.getLogger(__name__)
@@ -54,8 +55,18 @@ async def _dispatch_action(action: str, patient_phone: str, data: dict) -> None:
 
 
 async def _handle_launch(patient_phone: str, data: dict) -> None:
-    """Log intent to launch LiveAvatar session (stretch: deeplink trigger)."""
-    logger.info("[Photon] Patient %s is ready — LiveAvatar session launch requested.", patient_phone)
+    """Trigger the LiveAvatar service when the patient is ready."""
+    user_id = data.get("user_id") or data.get("sender") or patient_phone
+    base = os.environ.get("AVATAR_SERVICE_URL", "http://localhost:5000").rstrip("/")
+    url = f"{base}/avatar/start"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(url, params={"user_id": user_id})
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        logger.warning("[Photon] LiveAvatar trigger failed for user %s: %s", user_id, exc)
+        return
+    logger.info("[Photon] LiveAvatar session triggered for user %s (status %d).", user_id, response.status_code)
 
 
 async def _handle_skip(patient_phone: str, data: dict) -> None:

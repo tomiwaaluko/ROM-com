@@ -69,27 +69,24 @@ async def test_asr_mock_transcript() -> None:
 
 @pytest.mark.asyncio
 async def test_clinical_response_mock(monkeypatch: pytest.MonkeyPatch) -> None:
-    """clinical_response() must return a guardrail-compliant string via a mocked GPT-4o."""
-    monkeypatch.setenv("OPENAI_API_KEY", "test-dummy-not-real")
+    """clinical_response() must return a guardrail-compliant string via a mocked Gemini."""
+    monkeypatch.setenv("GEMINI_API_KEY", "test-dummy-not-real")
 
     canned = "Good session today. You can rest anytime."
 
-    async def _mock_stream():
-        class _Delta:
-            content = canned
+    class _Response:
+        text = canned
 
-        class _Choice:
-            delta = _Delta()
+    mock_model = MagicMock()
+    mock_model.generate_content_async = AsyncMock(return_value=_Response())
 
-        class _Chunk:
-            choices = [_Choice()]
-
-        yield _Chunk()
-
-    mock_create = AsyncMock(return_value=_mock_stream())
-
-    with patch("kineticlab.prompts.system_prompt.AsyncOpenAI") as mock_cls:
-        mock_cls.return_value.chat.completions.create = mock_create
+    with (
+        patch("kineticlab.prompts.system_prompt.genai.configure"),
+        patch(
+            "kineticlab.prompts.system_prompt.genai.GenerativeModel",
+            return_value=mock_model,
+        ),
+    ):
         from kineticlab.prompts import clinical_response
 
         result = await clinical_response(VALID_CONTEXT, "I'm ready")
@@ -154,3 +151,77 @@ async def test_session_latency_warning(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert speak_calls, "avatar.speak was never called — pipeline wiring is broken"
     session._ws.send_avatar_instruction.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_on_transcript_llm_error_uses_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When clinical_response raises, _on_transcript must use the fallback string."""
+    monkeypatch.setenv("WEBSOCKET_URL", "ws://localhost:9999")
+
+    from kineticlab.liveavatar.mock import MockLiveAvatarClient
+    from kineticlab.liveavatar.session import LiveAvatarSession
+
+    session = LiveAvatarSession()
+    session._session_context = VALID_CONTEXT
+
+    avatar = MockLiveAvatarClient()
+    await avatar.connect()
+    session._avatar = avatar
+
+    speak_calls: list[str] = []
+    _original_speak = avatar.speak
+
+    async def _tracked_speak(text: str) -> bytes:
+        speak_calls.append(text)
+        return await _original_speak(text)
+
+    avatar.speak = _tracked_speak
+    session._ws.send_avatar_instruction = AsyncMock()
+
+    with patch(
+        "kineticlab.liveavatar.session.clinical_response",
+        new=AsyncMock(side_effect=RuntimeError("Gemini down")),
+    ):
+        await session._on_transcript("I'm ready to start.")
+
+    assert speak_calls, "avatar.speak was not called with fallback text"
+    assert "rest" in speak_calls[0].lower()
+
+
+@pytest.mark.asyncio
+async def test_e2e_latency_sla(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mock ASR-to-avatar pipeline must stay under the 2000ms latency SLA."""
+    import time
+
+    monkeypatch.setenv("WEBSOCKET_URL", "ws://localhost:9999")
+
+    from kineticlab.liveavatar.mock import MockLiveAvatarClient
+    from kineticlab.liveavatar.session import LiveAvatarSession
+
+    async def _mock_clinical_response(*_args) -> str:
+        await asyncio.sleep(0.3)
+        return "Good effort. You can rest anytime."
+
+    async def _mock_speak(_text: str) -> bytes:
+        await asyncio.sleep(0.1)
+        return b""
+
+    session = LiveAvatarSession()
+    session._session_context = VALID_CONTEXT
+
+    avatar = MockLiveAvatarClient()
+    await avatar.connect()
+    session._avatar = avatar
+    session._avatar.speak = AsyncMock(side_effect=_mock_speak)
+    session._ws.send_avatar_instruction = AsyncMock()
+
+    with patch(
+        "kineticlab.liveavatar.session.clinical_response",
+        new=AsyncMock(side_effect=_mock_clinical_response),
+    ):
+        start = time.perf_counter()
+        await session._on_transcript("I'm ready")
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+    if elapsed_ms > 2000:
+        pytest.fail(f"E2E latency {elapsed_ms:.0f}ms exceeds 2000ms SLA")

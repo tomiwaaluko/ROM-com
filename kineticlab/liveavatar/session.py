@@ -9,12 +9,16 @@ import os
 from websockets.exceptions import ConnectionClosed
 
 from kineticlab.liveavatar.asr import get_asr_client
-from kineticlab.prompts import clinical_response
-
 logger = logging.getLogger(__name__)
 
 _HELLO = {"type": "hello", "payload": {"client": "sreekar_integrations", "version": "1.0.0"}}
 _FATAL_CODES = {"SESSION_CONFLICT", "AUTH_EXPIRED"}
+
+
+async def clinical_response(session_context: dict, patient_input: str) -> str:
+    from kineticlab.prompts import clinical_response as _clinical_response
+
+    return await _clinical_response(session_context, patient_input)
 
 
 def _require_env(key: str) -> str:
@@ -168,7 +172,11 @@ class LiveAvatarSession:
             logger.warning("[Session] Transcript received before session_context — ignoring.")
             return
         logger.debug("[Session] Transcript: %s", text)
-        response = await clinical_response(self._session_context, text)
+        try:
+            response = await clinical_response(self._session_context, text)
+        except Exception as exc:
+            logger.warning("[Session] clinical_response failed: %s. Using fallback.", exc)
+            response = "Let's take a short break. You can rest anytime. I'll be right here."
         audio_bytes = await self._avatar.speak(response)
         patient_id: str = self._session_context.get("patient_id", "unknown")
         audio_url: str | None = None

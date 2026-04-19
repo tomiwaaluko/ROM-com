@@ -1,0 +1,781 @@
+KineticLab_Plan_v2
+KineticLab — HackPrinceton Build Plan v2
+Stroke & TBI upper-extremity rehabilitation — single-scope refactor
+TL;DR
+Webcam-only stroke & TBI upper-extremity rehab system. MediaPipe Pose + Hands →
+Random Forest with ROM-normalized adaptive calibration →  React/Three.js exercise
+scenes via FastAPI WebSocket →  Arduino haptics. Ships an automated FMAUE
+subscale score (visible items only, 36/66 points) for the therapist dashboard. $0
+hardware floor — sits below FitMi $349, Saebo $300600, Neofect $99/mo or
+$15K clinic), and Tyromotion $75K. Enroll Healthcare + Hardware tracks; Best
+Overall is automatic. The unforgettable demo beat is restricted-ROM calibration: a user
+the system could not read 30 seconds ago now hits every target.
+🗺  Project Timeline — Simplified Flowchart
+What changed from v1
+Decision v1 v2
+Scope Stroke rehab + K12 accessible
+STEM (dual-market) Stroke / TBI upper-extremity rehab only
+Track enrollmentHealthcare + Education +
+Hardware Healthcare + Hardware
+Exercises 5 chemistry / physics
+simulations H ₂ O, glucose, etc.)
+5 pure rehab tasks mapped to FMAUE
+items
+Frontend stack React + Three.js + 3Dmol.js React + Three.js 3Dmol.js dropped)
+Hand grip Implicit grasp gestures Out of scope — vision canʼt measure grip
+force
+Brain
+visualization
+TRIBE v2 live cortical heatmap
+during rehab
+Cut from core build; revisit only if
+everything ships clean
+Clinical advisor Mentioned Pre-event email to Prof. Jordan A. Taylor
+Princeton IPA Lab)
+KineticLab_Plan_v2
+1
+
+1. Strategic framing
+The differentiation moat
+KineticLab competes on three axes that no incumbent stacks together:
+$0 hardware — uses any laptop webcam. Every competitor below requires
+purchased equipment.
+Adaptive ROM normalization — a 30-second calibration maps any userʼs personal
+range of motion to a 01 scale, so a patient with 45° max shoulder flexion can
+complete the same exercise as a healthy user at 180°.
+Automated FMAUE subscale scoring — every session generates a clinically
+interpretable score for the therapist dashboard, citing methodology validated to r ≈
+0.99 against clinical raters in published research.
+Track enrollment
+Track Status Prize Why we win
+Best
+Healthcare
+Hack
+Required,
+enrolled
+Apple Watch
+Series 11
+Strongest clinical case — 795K strokes/yr,
+validated FMAUE methodology
+Best Hardware
+Hack
+Required,
+enrolled
+BambuLab 3D
+Printer
+Tri-modal Arduino haptics (buzz + vibrate
++ LED — creative integration
+Best Overall
+Hack Automatic PS5 4 Hits all four rubric axes: Creativity, Utility,
+Charity, Avidity
+Education /
+Other Skipped — Single-scope discipline; dual-market
+dilutes the 2-min pitch
+2. The clinical case
+Numbers that score the Charity criterion. All figures from CDC, AHA, and peer-
+reviewed sources verified pre-event.
+Why this matters
+Stat Source / interpretation
+795,000 US strokes per year AHA Statistical Update 2025
+KineticLab_Plan_v2
+2
+
+Stat Source / interpretation
+5580% of acute stroke patients
+have upper-extremity impairment 5575% remain impaired in the chronic phase
+Only 31% of stroke survivors
+access outpatient rehab CDC MMWR — no US state exceeds 50%
+3050% of those who start rehab
+quit within 1 year Post-discharge adherence drops to 47%
+$56.2B total US stroke cost 2019
+2020 AHA 2025
+2.8M TBIs/year (hospital-based);
+9.76M self-reported NHIS 2023 CDC  2025 NHIS analysis
+The home-rehab evidence base
+Finding Citation
+Home-based UE intervention
+more effective than
+conventional therapy SMD
+0.28, 95% CI 0.120.44, p <
+0.001
+2020 meta-analysis of 26 RCTs
+FitMi RCT: gamified home rehab
+gained 8.0  4.6 FMAUE points
+vs 3.0  6.1 conventional
+Flint Rehab clinical trial
+Game-based UE rehab shows
+large effect sizes across 48
+RCTs / 2,809 participants
+2025 meta-analysis GRADE: low certainty but consistent
+direction)
+Vision-based automated FMA
+UE scoring achieves r = 0.99 vs
+clinical raters MediaPipe +
+RGBD
+Frontiers in Neuroscience, 2024 — methodological precedent
+for our scoring module
+The pricing gap
+KineticLab sits at the $0 hardware floor — every direct competitor requires purchased
+equipment.
+KineticLab_Plan_v2
+3
+
+Note: Sword Health acquired Kaia Health for $285M in January 2026 — the market
+validates camera-based motion analysis for rehabilitation as a high-value category.
+3. Technical architecture
+Data flow
+Webcam →  MediaPipe Pose 33 landmarks) + Hands 21/hand) at 2530 fps →  Python
+feature extraction (joint angles, velocities, normalized positions) →  ROM normalization
+→  Random Forest classifier →  FastAPI WebSocket →  React + Three.js exercise scene.
+Parallel: Python →  pyserial →  Arduino (buzzer D6, vibration D8, LED D3. End-to-end
+latency budget: 45 ms.
+ROM normalization — the technical moat
+Three steps, one-time per user, 30 seconds:
+1. Baseline capture. Guide user through max-comfort movements. Track min/max
+joint angles per landmark.
+2. Normalize. Store profile {joint: (min, max)}. Future readings →  (current −
+user_min) / (user_max − user_min). A patient with 45° max shoulder flexion and a
+healthy user at 180° both map to 0.0, 1.0.
+3. Adaptive thresholds. Exercise targets fire at percentages of personal max.
+Hysteresis (activate 70%, deactivate 50%) prevents flicker. EMA filter on joint
+KineticLab_Plan_v2
+4
+
+positions; rolling 60-sec variance auto-lowers thresholds when fatigue is detected.
+FMA-UE subscale scoring — the credibility piece
+The Fugl-Meyer Assessment Upper Extremity 066 scale) is the gold standard for
+post-stroke motor recovery (interrater ICC 0.96. Vision alone cannot measure grip
+force, so we cap at the visible subscale:
+Domain Points What we measure
+A. Shoulder / elbow /
+forearm 036 Joint angles + reach trajectories from
+MediaPipe Pose
+C. Wrist 010 Wrist landmark angles from MediaPipe Hands
+E. Coordination / speed 06 Bimanual timing + tremor variance
+KineticLab subscale total 52/66 Hand/grip section D, 014) excluded — vision
+cannot measure grip force
+Methodology grounded in Frontiers 2024) r = 0.99, Brain Sciences 2022) r = 0.981,
+and BIONICS Zamin et al. 2023 7883% item-wise accuracy on 45 acute stroke
+patients using a single digital camera. Cite these on the Devpost.
+4. Rehab exercise library
+Five exercises, all pure rehab tasks. Build two to demo polish Target Reach +
+Trajectory Trace) — those cover the strongest FMAUE domains and read instantly to
+non-clinician judges. Other three rough-in for expo depth.
+# Exercise What the patient
+does FMAUE items Demo role
+1 Target Reach
+Floating targets
+appear at varying
+heights/distances;
+reach with
+affected arm to
+extinguish each
+A.IA.IV (shoulder
+flexion, elbow
+extension)
+Primary demo
+2 Trajectory
+Trace
+Trace a moving
+path on screen
+with hand;
+accuracy scored
+C.IC.V (wrist
+flexion/extension),
+A.III
+Primary demo
+KineticLab_Plan_v2
+5
+
+# Exercise What the patient
+does FMAUE items Demo role
+against ideal
+trajectory
+3 Mirror Therapy
+Perform
+movement
+bilaterally; system
+mirrors
+unaffected arm
+onto affected side
+in real time
+Coordination / speed
+E.IE.III Expo depth
+4 Forearm
+Rotation
+Hold virtual
+object; rotate
+wrist to orient
+correctly (key-
+turning metaphor)
+B.VII
+(pronation/supination)Expo depth
+5
+Bimanual
+Reach-and-
+Place
+Pick up virtual
+object with both
+hands, transport
+to target zone
+Coordination +
+bilateral A.IA.IV Expo depth
+Demo selection rationale
+Target Reach + Trajectory Trace covers two of the three FMAUE domains we score
+(shoulder/elbow + wrist), uses two distinct gesture vocabularies, and demonstrates
+ROM scaling visibly. Mirror Therapy is the most clinically distinctive exercise but
+requires the most polish — keep as expo depth so a 10-minute booth visitor sees
+breadth without us over-promising on the 2-min stage.
+5. Pre-hackathon prep
+Per-person setup checklist
+Person Pre-event setup
+Sreekar
+Test webcam framing in target lighting; write pitch outline; pack laptop +
+charger, HDMI adapter, backup USB webcam, tripod, extension cord, power
+strip; draft Devpost shell
+Andrea Python 3.10 env with pinned mediapipe, scikit-learn, opencv-python, numpy,
+fastapi, uvicorn, websockets; verify MediaPipe Pose + Hands on own webcam;
+KineticLab_Plan_v2
+6
+
+Person Pre-event setup
+fork kinivi/hand-gesture-recognition-mediapipe Apache 2.0; read Frontiers
+2024 FMA scoring methodology
+Tomiwa
+Scaffold React + Three.js + @react-three/fiber app; verify Three.js renders
+smoothly on Ryzen 7  RTX 5070 Ti; test WebSocket client; review FMAUE
+A/C/E item videos on Shirley Ryan AbilityLab site
+Sakshi
+FastAPI  WebSocket boilerplate; Arduino IDE  Grove buzzer/vibration/LED
+smoke test; create accounts Auth0, MongoDB Atlas, ElevenLabs, Gemini);
+pre-register .tech domain
+All Agree on gesture vocabulary, calibration UX, WebSocket message schema;
+30-min integration dry run on Friday afternoon
+6. 36-hour build plan
+Phased ownership. Each person has one workstream and protected sleep blocks. The
+Hour 12 Gate is non-negotiable — if the end-to-end pipeline isnʼt connected by then,
+all hands fix it before anyone adds new features.
+Phase 1 — Foundation (H0–H6, Fri 8 PM – Sat 2 AM)
+Person Tasks
+Sreekar UX wireframes for calibration flow; register .tech domain; GitHub + Devpost
+shell; pitch outline draft; webcam + tripod setup at venue
+KineticLab_Plan_v2
+7
+
+Person Tasks
+Andrea
+Python env + MediaPipe Pose & Hands; verify 33 body + 21 hand landmarks
+across all team webcams; collect 50 samples per gesture from each
+teammate; extract joint angle features
+Tomiwa React + Three.js + @react-three/fiber scaffold; first exercise scene Target
+Reach with placeholder targets); WebSocket client with mock data
+Sakshi
+FastAPI  WebSocket server; Arduino + Grove buzzer/vibration/LED on
+D6/D8/D3; pyserial bridge; end-to-end smoke test Python sends “buzz” →
+Arduino buzzes)
+Phase 2 — Core (H6–H12, Sat 2 AM – Sat 8 AM)
+Person Tasks
+Sreekar SLEEP H6H10 4 hr. Then pitch script writing + judge Q&A prep
+Andrea Train Random Forest to ≥ 90% on team data; ROM calibration core: baseline
+capture, normalization, hysteresis thresholds
+Tomiwa Target Reach exercise (full gesture binding); Trajectory Trace exercise (path
+generator + accuracy scoring)
+Sakshi SLEEP H6H10 4 hr. Then ElevenLabs API integration + pre-generate session
+narration audio cues
+⚠  HOUR 12 GATE
+End-to-end pipeline working? Webcam →  MediaPipe →  classifier →  WebSocket →
+exercise scene →  Arduino haptic. If NO: all hands fix for 2 hours before anyone adds
+new features. If YES: proceed to Phase 3.
+LiveAvatar Expanded Document
+🧠  LiveAvatar: Real-Time Rehab Companion
+Concept: A HeyGen LiveAvatar serves as the patient-facing interface for stroke/TBI
+rehabilitation — delivering spoken instructions, adaptive guidance, and positive
+reinforcement through a real-time human-like presence.
+Why a face matters: Stroke/TBI patients frequently have reading deficits, attention
+impairment, and emotional dysregulation. A calm, responsive human face is more
+accessible and clinically meaningful than text, audio, or pre-recorded video.
+KineticLab_Plan_v2
+8
+
+How It Works
+The avatar is the body. Our LLM is the brain.
+Patient speaks/moves → ASR → LLM (clinical prompt layer) → LiveAvatar Lite API → avatar responds
+The avatar delivers step-by-step exercise instructions, monitors patient response, then
+adapts — simplifying if the patient struggles, celebrating when they succeed.
+Reinforcement is specific and grounded ("You held that two seconds — up from one
+last session") rather than generic praise.
+Stack
+Layer Tool
+Avatar renderingHeyGen LiveAvatar Lite/BYOLLM
+Intelligence GPT4o or Claude
+Voice output ElevenLabs
+Speech input Whisper / Deepgram
+Build Risks
+Confirm LiveAvatar API access on-site Friday
+End-to-end latency target: < 2s
+System prompt must include clinical guardrails
+Sreekar's Workstream — Subagent Phase
+Plan
+Why subagents, not agent teams
+LiveAvatar and Photon are structurally independent. They share the session data
+schema (read-only) and the clinical prompt guardrails file. They do not share runtime
+state during build. Subagents in parallel means no coordination overhead, no inter-
+agent handoff contracts, and no mid-task blocking.
+API access gate (verify at H0)
+Before committing to Phase 2, confirm on-site:
+KineticLab_Plan_v2
+9
+
+HeyGen LiveAvatar Lite/BYOLLM API access (confirm endpoint is not enterprise-
+gated)
+Photon Spectrum iMessage API access (confirm Mac server infra or managed infra
+available)
+If either is unavailable →  mock-first build. Skeleton clients with swapped-in mock
+responses. Phase 2 proceeds identically; real API swapped in when access is
+confirmed.
+Phase breakdown
+Phase Hours Task A LiveAvatar) Task B Photon
+1 H0H4 HeyGen Lite API client
+skeleton + mock fallback
+Photon iMessage client
+skeleton + mock fallback
+2 H4H8 Clinical prompt layer + session
+LLM system prompt
+5 message type templates
++ LLM generator
+3 H8H18
+ASR wiring
+Whisper/Deepgram →  avatar
+response)
+Cron scheduler + session
+data pull logic
+4 H18H24 E2E test: ASR →  LLM →  avatar
+< 2s
+E2E test: cron →  LLM →
+iMessage →  reply routing
+Each phase = one orchestrator call, two parallel subagent Tasks. Review and commit
+between phases before next batch runs.
+.claude/ folder structure
+.claude/
+├── CLAUDE.md
+├── skills/
+│   ├── liveavatar_api.md
+│   ├── photon_spectrum_api.md
+│   ├── elevenlabs_streaming.md
+│   └── clinical_prompt_guardrails.md
+├── agents/
+│   └── integration_architecture.md
+KineticLab_Plan_v2
+10
+
+└── hooks/
+    └── pre-commit
+Photon Summary
+TL;DR Photon Spectrum lets you send iMessage (and other platform) messages from
+your backend via API. Here's the condensed Notion-ready writeup for the daily
+reminder feature.
+📲  Photon Spectrum: Daily Recovery Reminders via
+iMessage
+Concept
+Stroke and TBI patients have consistently poor adherence to at-home exercise
+regimens — not from lack of motivation, but because they forget, lose track of time, or
+have no external nudge. We use Photon Spectrum to send personalized, AI-generated
+daily reminders directly to patients via iMessage — a platform they already use,
+requiring zero app download or behavior change.
+Why iMessage
+No new app to learn or download — critical for this population
+Higher open rates than email or push notifications
+Spectrum delivers messages in under 1 second on Photon's edge network with
+99.9% uptime photon
+Supports native platform formatting — polls, buttons, structured responses — so
+messages feel natural, not robotic photon
+How It Works
+Scheduler (daily cron) 
+    → Pull patient session data (last completed exercise, streak, next goal)
+    → LLM generates personalized message
+    → Photon Spectrum iMessage API sends to patient's phone
+    → Patient replies "ready" or taps a button
+    → System logs response, optionally launches LiveAvatar session
+KineticLab_Plan_v2
+11
+
+Message Types
+Type Example
+Daily reminder "Good morning [name]. Today's goal: 3 minutes of hand grip. You did it
+yesterday — let's go."
+Streak
+reinforcement
+"Day 5 in a row. That's real consistency. Today: breathing exercises, 5
+min."
+Missed session
+nudge
+"You skipped yesterday — no problem. Want to do a short 2-minute
+session now?"
+Weekly summary "This week: 4/7 sessions completed. Your grip strength target improved.
+Full recap inside."
+Quick poll "How are you feeling today? 💪  Good / 😐  Okay / 😓  Rough" — response
+routes to easier or standard session
+Two-Way Interaction
+Photon Spectrum isn't just outbound. Patients can reply:
+"Not today" →  system logs, notifies caregiver if pattern repeats
+"Ready" →  deeplinks into the app or triggers a LiveAvatar session
+"What's my exercise?" →  LLM responds with today's plan inline
+This keeps the patient in iMessage — no friction.
+Integration with the Broader Stack
+Photon sits at the top of the funnel. It's the nudge that gets the patient to open the app
+and engage with the LiveAvatar. The two features are complementary:
+Photon iMessage reminder → patient opens app → LiveAvatar guides session → session logged → next 
+day's Photon message is personalized to outcome
+Build Risk
+Confirm iMessage API access is available on-site (requires Mac server or Photon's
+managed infra)
+Patient phone number collection/consent needed at onboarding
+Tone guardrails on LLM — messages must never induce guilt or anxiety
+KineticLab_Plan_v2
+12
+
+Phase 3 — Integration (H12–H24, Sat 8 AM – Sat 8 PM)
+Person Tasks
+Sreekar Demo script v1; rehearse solo; therapist dashboard layout sketches; pitch
+refinement with team feedback
+Andrea Edge cases (lighting, occlusion); ROM envelope visual overlay on skeleton;
+user-switch auto-recalibrate; nap H16H20
+Tomiwa Calibration UI with guided prompts (the demo centerpiece); rough-in Mirror
+Therapy + Forearm Rotation + Bimanual scenes for expo depth
+Sakshi
+MLH integration block 8 prizes, parallel workstream): Auth0 1 hr, Gemini 2
+hr), Presage SmartSpectra 3 hr, MongoDB 1 hr, .tech domain 15 min,
+GoDaddy domain 15 min. Cut anything 3 hr
+Phase 4 — Submit (H24–H36, Sat 8 PM – Sun 8 AM)
+Person Tasks
+Sreekar Devpost writeup; high-quality demo video capture; 3 timed
+rehearsals at H30, H32, H34
+Andrea
+FMAUE subscale scoring module (the credibility piece).
+Model freeze H30. Bug fixes only after that. If everything is
+clean by H30, attempt the neuro-visualization stretch (see
+Appendix C
+Tomiwa Frontend freeze H28; record backup demo video; polish
+therapist dashboard
+Sakshi MongoDB session storage; final Devpost submit; verify all 8
+MLH prize submissions are checked
+Sleep totals: Sreekar 7h, Sakshi 7h, Andrea 4h, Tomiwa 4h. The two heaviest
+builders take strategic naps; Sreekar must be sharp for the pitch.
+7. Two-minute demo script
+Setup: laptop on external monitor or projector, webcam positioned for 2m clear space,
+Arduino visible on table. Sreekar faces camera, Andrea ready for user-switch demo.
+Target 150 wpm; full script 380 words.
+Time Beat Script
+000015 HOOK Sreekar reaches toward screen — target extinguishes.
+Reaches again, sweeps, traces an arc. Buzzer chirps, voice
+says “Nice reach.”“What you just saw is a stroke rehab
+KineticLab_Plan_v2
+13
+
+Time Beat Script
+session running on nothing but a laptop webcam. No glove,
+no sensor, no $15,000 clinic equipment. Just a webcam and
+an open hand.”
+015045 PROBLEM
+“Every year, 795,000 Americans have a stroke. 70% lose use
+of their arm. Outpatient rehab costs $27,000 per patient —
+and only 31% of survivors ever access it. Of those who do, a
+third quit within the first year because the exercises are
+repetitive and unmotivating. Home-based gamified rehab is
+proven to match clinic intensity at a fraction of the cost —
+but the cheapest existing solution still costs $349 in
+hardware. KineticLab costs zero.”
+045130 LIVE DEMO
+“Watch — Iʼll simulate a patient with limited mobility.”Sreekar
+restricts movement to 30° shoulder flexion. Red NOT
+RECOGNIZED indicators. System fails.“The system canʼt
+read me. Now — 30-second calibration.”Guided calibration
+runs. ROM envelope visibly shrinks. Threshold bars shift live
+in dashboard.“Now watch.”Same restricted movements →
+green RECOGNIZED ✓ . Targets extinguish in
+sequence.“Same body, same range. Different exercise —
+wrist tracing.”Switch to Trajectory Trace. Hand follows path;
+accuracy meter rises.“And Andrea has a different body
+—”Andrea steps in. Dashboard shifts, new envelope appears
+in a different color.“— auto-recalibrates in seconds. Every
+reach is shoulder flexion. Every trace is wrist extension. The
+system generates a Fugl-Meyer subscale score for the
+therapist after every session.”
+130150 TECH DEPTH
+“Under the hood: MediaPipe extracts 33 body and 21 hand
+landmarks per frame. A Random Forest classifier with per-
+user ROM-normalized thresholds drives the exercise logic
+through a FastAPI WebSocket. Arduino delivers tri-modal
+haptic feedback. Our scoring methodology is benchmarked
+against published vision-based FMAUE work — Frontiers
+2024 reports r = 0.99 against clinical raters using the same
+MediaPipe pipeline. Runs on any laptop. Calibrates to any
+new user in 30 seconds.”
+150200 CALL TO
+ACTION
+“Six hundred thousand stroke survivors lose arm function
+every year. The cheapest existing system costs $349. Ours
+costs zero, runs on what they already own, and generates
+clinically interpretable scores. KineticLab is rehabilitation
+KineticLab_Plan_v2
+14
+
+Time Beat Script
+that meets people where they are — at home, with a
+webcam, and a hand theyʼre learning to use again.”
+Contingencies
+Webcam glitches →  switch to phone-as-webcam via Camo or EpocCam (rehearse
+this).
+Gesture misreads →  “like any ML system, sometimes it needs a second try” →
+repeat the gesture.
+Calibration too slow →  pre-load a saved profile.
+Live demo fails →  narrate over backup video recorded H32H34.
+8. Risk register
+Risk L  I Mitigation Trigger to act
+Webcam quality /
+lighting poor M  M
+Test at venue H0; bring 23
+webcams MLH supplies 8
+Logitechs); secondary laptop as
+backup; phone-as-webcam via
+Camo/EpocCam
+H0: landmark
+detection flaky
+MediaPipe
+dependency
+conflict
+L  H
+Pin exact versions in
+requirements.txt; team uses same
+Python 3.10; test install on fresh
+env pre-event
+H1: pip install fails
+on any laptop
+Gesture accuracy
+< 70% M  H
+Reduce vocabulary; collect more
+samples; RF →  SVM fallback; rule-
+based on joint angles
+H8 75% on
+team
+Latency > 200 ms L  H
+Everything on localhost; lightweight
+models; pre-compute features;
+reduce MediaPipe complexity tier
+H10 150 ms
+Background /
+other people
+interfere
+M  M
+Position camera wall-facing;
+MediaPipe primary-person tracking
+handles most cases; rehearse in
+clutter
+Always
+Venue Wi-Fi
+unreliable
+M  M Core runs locally; pre-cache
+ElevenLabs + Gemini responses;
+On arrival
+KineticLab_Plan_v2
+15
+
+Risk L  I Mitigation Trigger to act
+local JSON for Mongo
+FMAUE scoring
+overclaim L  H
+Cite published methodology
+explicitly; do NOT call it FDA
+validated; frame as research-grade
+subscale proxy
+Pitch rehearsal
+Demo-day failure M  Crit
+Record high-quality backup video
+H32H34; narrate over video if live
+fails
+Always
+Team illness /
+exhaustion M  H Enforce sleep plan; written pitch so
+anyone can deliver Continuous
+MLH integration
+breaks core M  M All MLH is additive, never on critical
+path; cut any integration 3 hr Continuous
+9. Strategic recommendations
+Do these three things
+End-to-end pipeline by H12. A judge should be able to wave at the camera and
+see a target extinguish. Doesnʼt have to be polished — has to be connected.
+Adaptive calibration is the demo centerpiece. In a field of 50+ projects, the
+unforgettable moment is: restricted-ROM user fails →  30-sec calibration →
+succeeds visibly. Dedicate ≥ 4 hours to making this flawless.
+Rehearse with a timer 3. Two minutes is brutal. Most teams improvise and run
+over. H30, H32, H34.
+Donʼt do these three things
+Donʼt add hardware that doesnʼt earn its seat. Webcam + Arduino haptics is the
+surface area. Adding depth sensors or extra peripherals adds risk without
+strengthening the pitch — the accessibility narrative requires minimal hardware.
+Donʼt overclaim on clinical validity. FMAUE subscale scoring is research-grade
+methodology, not an FDA-cleared diagnostic. Frame it accurately. Judges with
+healthcare backgrounds will catch overclaims and penalize them.
+Donʼt spread MLH integrations across the team. One person Sakshi, one block
+H12H20. Cut any integration 3 hr.
+KineticLab_Plan_v2
+16
+
+If everything ships clean — stretch ranking
+In priority order, only if Phase 4 is on track by H30
+# Stretch Rationale
+1
+Therapist analytics
+dashboard ROM trends +
+session-over-session
+FMAUE delta)
+Highest pitch ROI — turns the system from “a
+tool” into “a longitudinal care platform”
+2 Open-source
+neuroimaging visualization
+Use HCP or Neurosynth motor-task cortical
+maps as pre-rendered “motor cortex regions
+engaged” imagery on the dashboard. Honest, no
+live inference, drives home neurological narrative
+without TRIBE v2 risk
+3 Add Mirror Therapy as a
+third demo exercise
+FMAUE coordination domain coverage; clinically
+distinctive
+4
+TRIBE v2 (post-hoc
+visual/audio cortex
+predictions)
+Only if cloud GPU is set up and a teammate has
+time. Reframe as “cortical response to rehab
+game stimuli,” NOT “motor cortex during
+exercise.” See Appendix C
+Appendix A — FMA-UE quick reference
+Useful for the pitch, judge Q&A, and the Devpost write-up. Source: Shirley Ryan
+AbilityLab RehabMeasures Database; Fugl-Meyer et al. 1975.
+Domain Points Items / our coverage
+A. Upper extremity
+(shoulder/elbow/forearm) 036
+Reflexes, flexor/extensor synergy, mixed
+synergy, movement out of synergy.
+KineticLab covers via Target Reach
+B. Wrist 010
+Stability with elbow flexed/extended,
+flexion/extension, circumduction. KineticLab
+covers via Trajectory Trace + Forearm
+Rotation
+C. Hand 014
+Mass flexion/extension, grasp variants,
+pincer. NOT COVERED — vision cannot
+measure grip force
+D. Coordination / speed 06 Finger-to-nose tremor, dysmetria, time.
+KineticLab partially covers via Bimanual
+KineticLab_Plan_v2
+17
+
+Domain Points Items / our coverage
+Reach-and-Place
+Total 066 KineticLab subscale score: 052 (excludes
+hand grip)
+Severity classifications: severe 019, moderate 2047, mild 4866. Minimal clinically
+important difference: 4.257.25 points (chronic, mild-moderate); 913 points (subacute,
+moderate-severe). Interrater reliability ICC  0.96.
+Appendix B — Competitor cheat sheet
+Product Hardware Cost How KineticLab beats them
+Tyromotion
+AMADEO
+Robotic finger device,
+clinic-only
+$50K$100K
+institutional
+Consumer-accessible; no
+hardware purchase
+MindMaze
+MindMotion
+Markerless optical
+capture, FDA-cleared
+Institutional
+licensing
+Same modality (camera) but
+consumer-grade and free
+Neofect RAPAEL Smart glove with IMU
++ flex sensors
+$99/mo home or
+$15K clinic
+No glove required; works with
+whatever ROM the patient
+has
+Jintronix Depth-sensor-based Discontinued
+Kinect
+MediaPipe replaces Kinect;
+runs on any laptop
+Saebo
+SaeboGlove) Mechanical orthosis $300$600 Software-only; we measure
+what they only assist
+Flint Rehab FitMi2 wireless sensor
+pucks, FDA-listed $349
+$0 hardware; same
+gamification model with
+adaptive ROM
+Kaia Health
+Sword
+Smartphone camera
+CV MSK pain focus)
+Acquired for
+$285M 1/2026
+Stroke-specific; explicitly
+trained for hemiparetic ROM
+MIRA Rehab
+Depth-sensor
+exergames, CE
+marked
+Institutional
+Webcam, not depth sensor —
+works on devices people
+already own
+Appendix C — Stretch: TRIBE v2 (only if
+everything ships)
+Read this before touching TRIBE v2
+KineticLab_Plan_v2
+18
+
+TRIBE v2 predicts how the brain responds to incoming stimuli (video, audio, text) — it
+does NOT predict motor cortex activation from performing movements. Using it to
+show “brain activation during rehab” is scientifically incorrect. Reframe required:
+present TRIBE v2 as predicting cortical response to the visual/audio stimulation of the
+rehab game, NOT motor cortex during exercise. Anything else is overclaiming and a
+healthcare-savvy judge will catch it.
+Hard requirements
+Cloud A100 40 GB VRAM minimum). RTX 5070 Ti has 16 GB — insufficient. Budget
+$12/hr on Lambda/RunPod/Modal.
+LLaMA 3.23B HuggingFace access token (gated model — accept license before
+event).
+22 GB model download. Cache to cloud volume before hackathon if possible.
+Owner: Andrea, only after H30 if model is frozen and core demo is solid.
+Minimum viable path
+# Step Time
+1 Spin up cloud GPU instance ( ≥ 40 GB VRAM 30 min
+2 Install tribev2, accept LLaMA license, download encoders 60 min
+3 Record 3060s rehab session video (.mp4) 5 min
+4 Run model.predict(events=df) →  activation tensor T,
+20484 10 min
+5 nilearn view_img_on_surf() →  interactive HTML brain map 60 min
+6 Embed HTML iframe in therapist dashboard “Researcher
+View” tab 60 min
+Total realistic build time ≥ 4 hours,
+fragile
+Better stretch alternative — open-source motor cortex
+maps
+Faster, lower risk, scientifically defensible: pre-render motor cortex region images from
+open-source neuroimaging atlases Neurosynth, HCP motor task) and overlay them on
+the therapist dashboard with annotations like “primary motor cortex M1 — engaged
+KineticLab_Plan_v2
+19
+
+during shoulder flexion exercise.” No live inference, no cloud GPU, no $300 LLaMA
+download. Same neurological narrative impact, finished in 23 hours instead of 8.
+Recommended over TRIBE v2 for this hackathon.
+🗂.claude/ — Sreekar's Workstream Config
+⌨Claude Code Prompt Sequence — Sreekar's Workstream
+KineticLab_Plan_v2
+20

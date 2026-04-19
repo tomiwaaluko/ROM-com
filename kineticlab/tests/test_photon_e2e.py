@@ -1,7 +1,7 @@
 """E2E tests for the Photon iMessage pipeline. All tests run with MOCK_MODE=true."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -160,6 +160,29 @@ def test_inbound_webhook_ready(photon_test_client: TestClient) -> None:
     )
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok"}
+
+
+def test_handle_launch_posts_to_avatar_start(photon_test_client: TestClient) -> None:
+    """Ready replies must trigger the LiveAvatar start endpoint."""
+    response = Mock(status_code=200)
+    response.raise_for_status = Mock()
+
+    with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=response)) as mock_post:
+        resp = photon_test_client.post(
+            "/photon/inbound",
+            json={
+                "message_id": "msg_003",
+                "sender": "+14125550103",
+                "content": "Ready",
+                "timestamp": "2026-04-18T08:02:00Z",
+                "in_reply_to": "msg_002",
+            },
+        )
+
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+    mock_post.assert_awaited_once()
+    assert "/avatar/start" in mock_post.call_args.args[0]
 
 
 def test_inbound_webhook_rough_mood(photon_test_client: TestClient) -> None:

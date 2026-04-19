@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useCalibrationStore } from './calibrationStore';
 import { useSessionStore } from './sessionStore';
 import { useExerciseStore } from './exerciseStore';
+import { useAvatarStore } from './avatarStore';
 
 // ── Message types from backend ──────────────────────────────────────────────
 export interface WSMessage {
@@ -129,15 +130,19 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
 
     switch (type) {
       // Backend schema v1.1 messages
-      case 'gesture':
+      case 'gesture': {
+        const confidence = payload.confidence as number;
         useExerciseStore.getState().updateNormalizedAngle(payload.normalized_rom as number);
+        useCalibrationStore.getState().setRecognized(confidence > 0.6);
+        useCalibrationStore.getState().updateLiveAngle(payload.normalized_rom as number);
         set({
           lastGesture: {
             name: payload.name as string,
-            confidence: payload.confidence as number,
+            confidence,
           },
         });
         break;
+      }
       case 'fma_score':
         useSessionStore.getState().updateFMAScore({
           domain_a: payload.domain_a as number,
@@ -209,6 +214,20 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
         useExerciseStore.getState().updateNormalizedAngle(payload.normalized_angle as number);
         break;
 
+      case 'avatar_response': {
+        const text = payload.text as string;
+        const stage = payload.stage as string | undefined;
+        if (text) {
+          useAvatarStore.getState().setAvatarText(text, stage);
+        }
+        break;
+      }
+      case 'avatar_narrate_error':
+        console.warn('[WS] avatar_narrate_error:', payload);
+        useAvatarStore.getState().setError(
+          (payload.message as string) || 'Narration error'
+        );
+        break;
       default:
         console.debug('[WS] Unhandled message type:', type);
     }

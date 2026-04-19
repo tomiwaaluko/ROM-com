@@ -1,9 +1,9 @@
-"""Compatibility entry point for `python -m photon.main`."""
+"""Compatibility entry point for the LiveAvatar service."""
 from __future__ import annotations
 
 import asyncio
 
-from kineticlab.photon.main import main
+from kineticlab.liveavatar.main import main
 
 
 if __name__ == "__main__":

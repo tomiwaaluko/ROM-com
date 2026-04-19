@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useMockData } from './hooks/useMockData';
@@ -11,6 +12,120 @@ import { MirrorTherapy } from './exercises/MirrorTherapy';
 import { ForearmRotation } from './exercises/ForearmRotation';
 import { BimanualReach } from './exercises/BimanualReach';
 import { TherapistDashboard } from './components/dashboard/TherapistDashboard';
+import { LiveAvatarView } from './components/avatar/LiveAvatarView';
+
+const BACKEND = 'http://localhost:8000';
+
+function PipelineControl() {
+  const [running, setRunning] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch(`${BACKEND}/pipeline/status`)
+      .then((r) => r.json())
+      .then((d) => setRunning(d.running))
+      .catch(() => {});
+  }, []);
+
+  async function toggle() {
+    setLoading(true);
+    try {
+      const endpoint = running ? '/pipeline/stop' : '/pipeline/start';
+      const res = await fetch(`${BACKEND}${endpoint}`, { method: 'POST' });
+      const data = await res.json();
+      setRunning(data.status === 'started' || data.status === 'already_running');
+    } catch {
+      alert('Could not reach backend.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <button
+        onClick={toggle}
+        disabled={loading}
+        style={{
+          fontSize: 15,
+          padding: '6px 18px',
+          cursor: loading ? 'wait' : 'pointer',
+          background: running ? '#c0392b' : '#27ae60',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 4,
+          marginRight: 10,
+        }}
+      >
+        {loading ? '...' : running ? '⏹ Stop Pipeline' : '▶ Start Pipeline'}
+      </button>
+      <span style={{ color: running ? '#2ecc71' : '#888', fontSize: 13 }}>
+        {running ? '● Pipeline running (MediaPipe + gesture classifier)' : '○ Pipeline stopped'}
+      </span>
+    </div>
+  );
+}
+
+function CameraPreview() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [active, setActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  async function startCamera() {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setActive(true);
+    } catch {
+      setError('Camera access denied or unavailable.');
+    }
+  }
+
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setActive(false);
+  }
+
+  useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <h2>Camera Calibration Preview</h2>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+        <button
+          onClick={active ? stopCamera : startCamera}
+          style={{
+            fontSize: 15,
+            padding: '6px 18px',
+            cursor: 'pointer',
+            background: active ? '#c0392b' : '#2980b9',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 4,
+          }}
+        >
+          {active ? 'Stop Camera' : 'Start Camera'}
+        </button>
+        {active && <span style={{ color: '#2ecc71' }}>● Live</span>}
+      </div>
+      {error && <p style={{ color: '#e74c3c' }}>{error}</p>}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{ width: 480, borderRadius: 6, border: '2px solid #444', display: active ? 'block' : 'none' }}
+      />
+    </div>
+  );
+}
 
 function Dashboard() {
   const { status, isMockMode } = useWebSocket();
@@ -26,6 +141,9 @@ function Dashboard() {
     <div style={{ fontFamily: 'monospace', padding: 24 }}>
       <h1>KineticLab — WebSocket Foundation</h1>
       <p>Status: <strong>{status}</strong> {isMockMode && '(mock mode)'}</p>
+      <hr />
+      <PipelineControl />
+      <CameraPreview />
       <hr />
       <h2>Live Store Values</h2>
       <ul>
@@ -43,6 +161,7 @@ function Dashboard() {
         <Link to="/exercise/mirror-therapy" style={{ fontSize: 18 }}>Mirror Therapy Exercise</Link>
         <Link to="/exercise/forearm-rotation" style={{ fontSize: 18 }}>Forearm Rotation Exercise</Link>
         <Link to="/exercise/bimanual-reach" style={{ fontSize: 18 }}>Bimanual Reach Exercise</Link>
+        <Link to="/avatar" style={{ fontSize: 18 }}>→ Live Avatar (Kai)</Link>
         <Link to="/dashboard" style={{ fontSize: 18 }}>→ Therapist Dashboard</Link>
       </div>
     </div>
@@ -92,6 +211,7 @@ function App() {
         <Route path="/exercise/mirror-therapy" element={<MirrorTherapyPage />} />
         <Route path="/exercise/forearm-rotation" element={<ForearmRotationPage />} />
         <Route path="/exercise/bimanual-reach" element={<BimanualReachPage />} />
+        <Route path="/avatar" element={<LiveAvatarView />} />
         <Route path="/dashboard" element={<DashboardPage />} />
       </Routes>
     </BrowserRouter>
